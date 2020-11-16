@@ -22,6 +22,8 @@
 #define PMSM_CCW	1
 
 //#define HALL_SEQUENCE_DEBUG
+#define TIM3_DEBUG
+#define MAIN_FUNC_DEBUG
 
 
 void PMSM_Init(void);

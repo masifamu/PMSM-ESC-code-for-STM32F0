@@ -50,7 +50,9 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+#ifdef MAIN_FUNC_DEBUG
 char printDataString[100] = {'\0',};
+#endif
 uint16_t ADCBuffer[6]={0,};
 /* USER CODE END PV */
 
@@ -104,6 +106,8 @@ int main(void)
 	HAL_ADCEx_Calibration_Start(&hadc);
 	HAL_ADC_Start_DMA(&hadc,(uint32_t*)&ADCBuffer,6);
 	
+	PMSM_Init();
+	
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
   /* USER CODE END 2 */
 
@@ -118,7 +122,7 @@ int main(void)
 		snprintf(printDataString,100, "adcbuffer=%3d\n\r", ADCBuffer[0]);
 		HAL_UART_Transmit(&huart1, (uint8_t*)printDataString, strlen(printDataString), HAL_MAX_DELAY);
 		
-		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_3);
+		//HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_3);
 		
 		if (ADCBuffer[0] > PMSM_ADC_START) {
     	// If Motor Is not run
@@ -135,10 +139,14 @@ int main(void)
     		PMSM_MotorCommutation(PMSM_HallSensorsGetPosition());
     		PMSM_MotorSetRun();
     	}
+#ifdef MAIN_FUNC_DEBUG
 			HAL_UART_Transmit(&huart1, (uint8_t*)"running\n\r", 9, HAL_MAX_DELAY);
+#endif
    		PMSM_SetPWM(PMSM_ADCToPWM(ADCBuffer[0]));
     } else {
+#ifdef MAIN_FUNC_DEBUG
 			HAL_UART_Transmit(&huart1, (uint8_t*)"stopped\n\r", 9, HAL_MAX_DELAY);
+#endif
     	PMSM_SetPWM(0);
     }
   }
