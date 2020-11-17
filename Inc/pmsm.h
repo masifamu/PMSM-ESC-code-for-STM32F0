@@ -22,15 +22,16 @@
 #define PMSM_CCW	1
 
 //#define HALL_SEQUENCE_DEBUG
-#define TIM3_DEBUG
+//#define TIM3_DEBUG
 //#define TIM14_DEBUG
-//#define MAIN_FUNC_DEBUG
+#define MAIN_FUNC_DEBUG
 
 
 void PMSM_Init(void);
 void PMSM_MotorSetSpin(uint8_t spin);
 void PMSM_MotorSetRun(void);
 void PMSM_MotorStop(void);
+void PMSM_MotorStart(void);
 uint8_t PMSM_MotorIsRun(void);
 void PMSM_MotorCommutation(uint16_t hallpos);
 uint8_t PMSM_HallSensorsGetPosition(void);

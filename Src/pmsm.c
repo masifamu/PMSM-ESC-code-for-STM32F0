@@ -6,22 +6,40 @@
 
 #include "pmsm.h"
 
+#define TIM1CH1(x) TIM1->CCR1=x
+#define TIM1CH2(x) TIM1->CCR2=x
+#define TIM1CH3(x) TIM1->CCR3=x
+
+#define CH1 1
+#define CH2 2
+#define CH3 3
+
+
 // Variables
 volatile uint8_t PMSM_MotorRunFlag = 0;
 volatile uint8_t PMSM_MotorSpin = PMSM_CW;
 uint8_t PMSM_State[6] = {0, 0, 0, 0, 0, 0};
+uint8_t PMSM_State_Prev[6] = {0, 0, 0, 0, 0, 0};
 volatile uint8_t	PMSM_Sensors = 0;
 volatile uint8_t PMSM_SinTableIndex = 0;
 volatile uint16_t PMSM_PWM = 0;
 volatile uint16_t PMSM_Speed = 0;
 volatile uint16_t PMSM_Speed_prev = 0;
 volatile uint8_t PMSM_ModeEnabled = 0;
+
+volatile uint8_t toUpdate=0;
+volatile uint16_t PWMWIDTH=0;
+
 #ifdef HALL_SEQUENCE_DEBUG
 char printDataString1[50] = {'\0',};
 #endif
 #ifdef TIM3_DEBUG
 char tim3debugstring[50] = {'\0',};
 #endif
+#ifdef TIM14_DEBUG
+char tim14debugstring[50] = {'\0',};
+#endif
+
 // Timing (points in sine table)
 // sine table contains 192 items; 360/192 = 1.875 degrees per item
 volatile static int8_t PMSM_Timing = 10; // 15 * 1.875 = 28.125 degrees
@@ -30,28 +48,28 @@ volatile static int8_t PMSM_Timing = 10; // 15 * 1.875 = 28.125 degrees
 static const uint8_t PMSM_BRIDGE_STATE_FORWARD[8][6] =
 {
 //	UH,UL		VH,VL	WH,WL
-   { 0,0,		0,0,	0,0 },  // 0 //000
-   { 0,1,		0,0,	1,0 },
-   { 1,0,		0,1,	0,0 },
-   { 0,0,		0,1,	1,0 },
-   { 0,0,		1,0,	0,1 },
-   { 0,1,		1,0,	0,0 },
-   { 1,0,		0,0,	0,1 },
-   { 0,0,		0,0,	0,0 },  // 0 //111
+   { 0,0	,	0,0	,	0,0 },  // 0 //000
+   { 0,1	,	0,0	,	1,0 },
+   { 0,0	,	1,0	,	0,1 },
+   { 0,1	,	1,0	,	0,0 },
+   { 1,0	,	0,1	,	0,0 },
+   { 0,0	,	0,1	,	1,0 },
+   { 1,0	,	0,0	,	0,1 },
+   { 0,0	,	0,0	,	0,0 },  // 0 //111
 };
 
 // Backward Motor steps
 static const uint8_t PMSM_BRIDGE_STATE_BACKWARD[8][6] =
 {
 //	UH,UL		VH,VL	WH,WL
-   { 0,0,		0,0,	0,0 },  //  //000
-   { 1,0,		0,0,	0,1 },
-   { 0,1,		1,0,	0,0 },
-   { 0,0,		1,0,	0,1 },
-   { 0,0,		0,1,	1,0 },
-   { 1,0,		0,1,	0,0 },
-   { 0,1,		0,0,	1,0 },
-   { 0,0,		0,0,	0,0 },  //  //111
+   { 0,0	,	0,0	,	0,0 },  // 0 //000
+   { 1,0	,	0,0	,	0,1 },
+   { 0,0	,	0,1	,	1,0 },
+   { 1,0	,	0,1	,	0,0 },
+   { 0,1	,	1,0	,	0,0 },
+   { 0,0	,	1,0	,	0,1 },
+   { 0,1	,	0,0	,	1,0 },
+   { 0,0	,	0,0	,	0,0 },  // 0 //111
 };
 
 // Sin table
@@ -266,30 +284,25 @@ static const uint8_t PMSM_STATE_TABLE_INDEX_BACKWARD[8] = {0, 32, 160, 0, 96, 64
 // Initialize of all needed peripheral
 
 void PMSM_Init(void) {
-//	TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_OCMode_PWM1);
-//	TIM_SelectOCxM(TIM1, TIM_Channel_2, TIM_OCMode_PWM1);
-//	TIM_SelectOCxM(TIM1, TIM_Channel_3, TIM_OCMode_PWM1);
-	PMSM_MotorStop();
+	PMSM_MotorStart();
 }
 
 
 // Stop a motor
-void PMSM_MotorStop(void)
+void PMSM_MotorStart(void)
 {
 	PMSM_SetPWM(0);
 
-//	TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Disable);
-//	TIM_CCxCmd(TIM1, TIM_Channel_2, TIM_CCx_Disable);
-//	TIM_CCxCmd(TIM1, TIM_Channel_3, TIM_CCx_Disable);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2); 
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3); 
 
-//	TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Disable);
-//	TIM_CCxNCmd(TIM1, TIM_Channel_2, TIM_CCxN_Disable);
-//	TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Disable);
-
-//	TIM_Cmd(TIM3, DISABLE);
-	TIM3->CR1 = 0;
-//	TIM_Cmd(TIM4, DISABLE);
-	TIM14->CR1 = 0;
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET);
+	
+	TIM3->CR1 = 0;																						//disabling the timer3
+	TIM14->CR1 = 0;																						//disabling the timer14
 	
 	PMSM_Speed = 0;
 	PMSM_Speed_prev = 0;
@@ -297,36 +310,36 @@ void PMSM_MotorStop(void)
 	PMSM_ModeEnabled = 0;
 }
 
+void PMSM_MotorStop(void){
+	PMSM_SetPWM(1);
+}
 // Every time when hall sensors change state executed this IRQ handler
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-	
-	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_4);//yellow LED
+	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_4);																//yellow LED
 	// Get current rotor position
 	PMSM_Sensors = PMSM_HallSensorsGetPosition();
 
 	// Get rotation time (in inverse ratio speed) from timer TIM3
 	PMSM_Speed_prev = PMSM_Speed;
-	PMSM_Speed = __HAL_TIM_GET_COUNTER(&htim3);//get counter CNT current value
+	PMSM_Speed = __HAL_TIM_GET_COUNTER(&htim3);														//get counter CNT current value
 #ifdef TIM3_DEBUG
 	snprintf(tim3debugstring,50, "PMSM speed = %d\n\r", PMSM_Speed);
 	HAL_UART_Transmit(&huart1, (uint8_t*)tim3debugstring, strlen(tim3debugstring), HAL_MAX_DELAY);
 #endif
-	TIM3->CR1 = 1;//1=enable the timer and 0 disables the timer
-	__HAL_TIM_SET_COUNTER(&htim3,0);//TIM_SetCounter(TIM3, 0);//initialize timer CNT
+	TIM3->CR1 = 1;																												//1=enable the timer and 0 disables the timer
+	__HAL_TIM_SET_COUNTER(&htim3,0);																			//initialize timer CNT
 
 	// It requires at least two measurement to correct calculate the rotor speed
 	if (PMSM_MotorSpeedIsOK()) {
 		// Enable timer TIM4 to generate sine
 #ifdef TIM14_DEBUG
-	snprintf(tim3debugstring,50, "timer14counter = %d\n\r", __HAL_TIM_GET_COUNTER(&htim14));
-	HAL_UART_Transmit(&huart1, (uint8_t*)tim3debugstring, strlen(tim3debugstring), HAL_MAX_DELAY);
+		snprintf(tim14debugstring,50, "timer14counter = %d\n\r",PMSM_Speed/*__HAL_TIM_GET_COUNTER(&htim14)*/);
+		HAL_UART_Transmit(&huart1, (uint8_t*)tim14debugstring, strlen(tim14debugstring), HAL_MAX_DELAY);
 #endif
 		__HAL_TIM_SET_COUNTER(&htim14,0);
 		// Set timer period
 		TIM14->ARR = PMSM_Speed / 32; //32 - number of items in the sine table between commutations (192/6 = 32)
-		//TIM14->DIER = 1;//enable the interrupt occurance on update event
 		TIM14->CR1 = 1;
-
 	}
 
 	// If Hall sensors value is valid
@@ -349,15 +362,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance == TIM3){
 		// Overflow - the motor is stopped
 		if (PMSM_MotorSpeedIsOK()){ PMSM_MotorStop(); }
-		HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_12);//blue LED
+		HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_12);																	//blue LED
 #ifdef TIM3_DEBUG
 		HAL_UART_Transmit(&huart1, (uint8_t*)"Timer3 overflow\n\r", 17, HAL_MAX_DELAY);
 #endif
 	}
 	if(htim->Instance == TIM14){
+#ifdef TIM14_DEBUG
+		HAL_UART_Transmit(&huart1, (uint8_t*)"Timer14 called\n\r", 16, HAL_MAX_DELAY);
+#endif
 		uint16_t PWM1, PWM2, PWM3;
 		// If time to enable PMSM mode
-		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_3);//green LED	
+		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_3);																		//green LED	
  		if (PMSM_ModeEnabled == 0) {
 			// Turn PWM outputs for working with sine wave
 /*			TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_OCMode_PWM1);
@@ -383,8 +399,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		if (PMSM_MotorSpin == PMSM_CW) {
 			// Forward rotation
 			PMSM_SetPWM_UVW(PWM1, PWM2, PWM3);
-		}
-		else {
+		}	else {
 			// Backward rotation
 			PMSM_SetPWM_UVW(PWM1, PWM3, PWM2);
 		}
@@ -413,63 +428,37 @@ void PMSM_MotorCommutation(uint16_t hallpos) {
 		memcpy(PMSM_State, PMSM_BRIDGE_STATE_BACKWARD[hallpos], sizeof(PMSM_State));
 	}
 
-	// PWM at low side FET of bridge U
-	// active freewheeling at high side FET of bridge U
-	// if low side FET is in PWM off mode then the hide side FET
-	// is ON for active freewheeling. This mode needs correct definition
-	// of dead time otherwise we have shoot-through problems
-/*
-	if (PMSM_State[UH]) {
-		TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_OCMode_PWM1);
-		TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Enable);
-		TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Enable);
-	} else {
-		// Low side FET: OFF
-		TIM_CCxCmd(TIM1, TIM_Channel_1, TIM_CCx_Disable);
-		if (PMSM_State[UL]){
-			// High side FET: ON
-			TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_ForcedAction_Active);
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Enable);
-		} else {
-			// High side FET: OFF
-			TIM_CCxNCmd(TIM1, TIM_Channel_1, TIM_CCxN_Disable);
-		}
-	}
+// Disable if need
+	if (!PMSM_State[UH]) TIM1CH3(0);
+	if (!PMSM_State[UL]) HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
+	if (!PMSM_State[VH]) TIM1CH2(0);
+	if (!PMSM_State[VL]) HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+	if (!PMSM_State[WH]) TIM1CH1(0);
+	if (!PMSM_State[WL]) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
 
-	if (PMSM_State[VH]) {
-		TIM_SelectOCxM(TIM1, TIM_Channel_2, TIM_OCMode_PWM1);
-		TIM_CCxCmd(TIM1, TIM_Channel_2, TIM_CCx_Enable);
-		TIM_CCxNCmd(TIM1, TIM_Channel_2, TIM_CCxN_Enable);
-	} else {
-		// Low side FET: OFF
-		TIM_CCxCmd(TIM1, TIM_Channel_2, TIM_CCx_Disable);
-		if (PMSM_State[VL]){
-			// High side FET: ON
-			TIM_SelectOCxM(TIM1, TIM_Channel_2, TIM_ForcedAction_Active);
-			TIM_CCxNCmd(TIM1, TIM_Channel_2, TIM_CCxN_Enable);
-		} else {
-			// High side FET: OFF
-			TIM_CCxNCmd(TIM1, TIM_Channel_2, TIM_CCxN_Disable);
-		}
+	// Enable if need. If previous state is Enabled then not enable again. Else output do flip-flop.
+	if (PMSM_State[UH] & !PMSM_State[UL] & !PMSM_State_Prev[UH]) {
+		TIM1CH3(PWMWIDTH); 
+		toUpdate=CH3;
 	}
-
-	if (PMSM_State[WH]) {
-		TIM_SelectOCxM(TIM1, TIM_Channel_3, TIM_OCMode_PWM1);
-		TIM_CCxCmd(TIM1, TIM_Channel_3, TIM_CCx_Enable);
-		TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Enable);
-	} else {
-		// Low side FET: OFF
-		TIM_CCxCmd(TIM1, TIM_Channel_3, TIM_CCx_Disable);
-		if (PMSM_State[WL]){
-			// High side FET: ON
-			TIM_SelectOCxM(TIM1, TIM_Channel_3, TIM_ForcedAction_Active);
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Enable);
-		} else {
-			// High side FET: OFF
-			TIM_CCxNCmd(TIM1, TIM_Channel_3, TIM_CCxN_Disable);
-		}
+	if (PMSM_State[UL] & !PMSM_State[UH] & !PMSM_State_Prev[UL]) {
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
 	}
-*/
+	if (PMSM_State[VH] & !PMSM_State[VL] & !PMSM_State_Prev[VH]) {
+		TIM1CH2(PWMWIDTH); 
+		toUpdate=CH2;
+	}
+	if (PMSM_State[VL] & !PMSM_State[VH] & !PMSM_State_Prev[VL]) {
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+	}
+	if (PMSM_State[WH] & !PMSM_State[WL] & !PMSM_State_Prev[WH]) {
+		TIM1CH1(PWMWIDTH); 
+		toUpdate=CH1;
+	}
+	if (PMSM_State[WL] & !PMSM_State[WH] & !PMSM_State_Prev[WL]) {
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+	}
+	memcpy(PMSM_State_Prev, PMSM_State, sizeof(PMSM_State));
 }
 
 // Transform ADC value to value for writing to the timer register
@@ -493,11 +482,18 @@ uint16_t PMSM_ADCToPWM(uint16_t ADC_VALUE) {
 void PMSM_SetPWM(uint16_t PWM)
 {
 	if (PMSM_ModeEnabled == 0) {
-		TIM1->CCR1 = PWM;
-		TIM1->CCR2 = PWM;
-		TIM1->CCR3 = PWM;
-	}
-	else {
+		PWMWIDTH=PWM;
+		if(toUpdate == CH1){
+			TIM1CH1(PWMWIDTH);
+		}else if(toUpdate == CH2){
+			TIM1CH2(PWMWIDTH);
+		}else if(toUpdate == CH3){
+			TIM1CH3(PWMWIDTH);
+		}
+		//TIM1->CCR1 = PWM;
+		//TIM1->CCR2 = PWM;
+		//TIM1->CCR3 = PWM;
+	}	else {
 		PMSM_PWM = PWM;
 	}
 }
@@ -506,9 +502,19 @@ void PMSM_SetPWM(uint16_t PWM)
 void PMSM_SetPWM_UVW(uint16_t PWM1, uint16_t PWM2, uint16_t PWM3)
 {
 	if (PMSM_ModeEnabled == 1) {
-		TIM1->CCR1 = PWM1;
-		TIM1->CCR2 = PWM2;
-		TIM1->CCR3 = PWM3;
+		if(toUpdate==CH1){
+			TIM1CH1(PWM1);
+			PWMWIDTH=PWM1;
+		}else if(toUpdate==CH2){
+			TIM1CH2(PWM2);
+			PWMWIDTH = PWM2;
+		}else if(toUpdate == CH3){
+			TIM1CH3(PWM3);
+			PWMWIDTH = PWM3;
+		}
+		//TIM1->CCR1 = PWM1;
+		//TIM1->CCR2 = PWM2;
+		//TIM1->CCR3 = PWM3;
 	}
 }
 
@@ -518,16 +524,14 @@ uint8_t	PMSM_GetState(uint8_t SensorsPosition) {
 
 	if (PMSM_MotorSpin == PMSM_CW) {
 		index = PMSM_STATE_TABLE_INDEX_FORWARD[SensorsPosition];
-	}
-	else {
+	} else {
 		index = PMSM_STATE_TABLE_INDEX_BACKWARD[SensorsPosition];
 	}
 
 	index = index + (int16_t)PMSM_Timing;
 	if (index > PMSM_SINTABLESIZE-1) {
 		index = index - PMSM_SINTABLESIZE;
-	}
-	else {
+	} else {
 		if (index < 0) {
 			index = PMSM_SINTABLESIZE + index;
 		}

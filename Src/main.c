@@ -117,8 +117,6 @@ int main(void)
   {
     /* USER CODE END WHILE */
 #ifdef MAIN_FUNC_DEBUG
-		HAL_UART_Transmit(&huart1,(uint8_t *)"HELLO\n\r",7, HAL_MAX_DELAY);
-		HAL_Delay(1000);
     /* USER CODE BEGIN 3 */
 		snprintf(printDataString,100, "adcbuffer=%3d\n\r", ADCBuffer[0]);
 		HAL_UART_Transmit(&huart1, (uint8_t*)printDataString, strlen(printDataString), HAL_MAX_DELAY);
