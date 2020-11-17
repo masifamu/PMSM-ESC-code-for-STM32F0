@@ -15,7 +15,7 @@
 #define PMSM_ADC_STOP 50
 #define PMSM_ADC_MAX 4000
 
-#define PMSM_SPEED_TIMER_PRESCALER	72
+#define PMSM_SPEED_TIMER_PRESCALER	7
 #define PMSM_SPEED_TIMER_PERIOD	0xFFFF // 65535
 
 #define PMSM_CW		0
@@ -23,7 +23,8 @@
 
 //#define HALL_SEQUENCE_DEBUG
 #define TIM3_DEBUG
-#define MAIN_FUNC_DEBUG
+//#define TIM14_DEBUG
+//#define MAIN_FUNC_DEBUG
 
 
 void PMSM_Init(void);

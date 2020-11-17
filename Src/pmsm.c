@@ -5,7 +5,6 @@
 #include "stdio.h"
 
 #include "pmsm.h"
-#include "tim.h"
 
 // Variables
 volatile uint8_t PMSM_MotorRunFlag = 0;
@@ -301,7 +300,7 @@ void PMSM_MotorStop(void)
 // Every time when hall sensors change state executed this IRQ handler
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	
-	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_4);
+	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_4);//yellow LED
 	// Get current rotor position
 	PMSM_Sensors = PMSM_HallSensorsGetPosition();
 
@@ -312,17 +311,23 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	snprintf(tim3debugstring,50, "PMSM speed = %d\n\r", PMSM_Speed);
 	HAL_UART_Transmit(&huart1, (uint8_t*)tim3debugstring, strlen(tim3debugstring), HAL_MAX_DELAY);
 #endif
-	//TIM3->CR1 = 1;//1=enable the timer and 0 disables the timer
-	//__HAL_TIM_SET_COUNTER(&htim3,0);//TIM_SetCounter(TIM3, 0);//initialize timer CNT
+	TIM3->CR1 = 1;//1=enable the timer and 0 disables the timer
+	__HAL_TIM_SET_COUNTER(&htim3,0);//TIM_SetCounter(TIM3, 0);//initialize timer CNT
 
 	// It requires at least two measurement to correct calculate the rotor speed
-	//if (PMSM_MotorSpeedIsOK()) {
+	if (PMSM_MotorSpeedIsOK()) {
 		// Enable timer TIM4 to generate sine
-	//	__HAL_TIM_SET_COUNTER(&htim14,0);
+#ifdef TIM14_DEBUG
+	snprintf(tim3debugstring,50, "timer14counter = %d\n\r", __HAL_TIM_GET_COUNTER(&htim14));
+	HAL_UART_Transmit(&huart1, (uint8_t*)tim3debugstring, strlen(tim3debugstring), HAL_MAX_DELAY);
+#endif
+		__HAL_TIM_SET_COUNTER(&htim14,0);
 		// Set timer period
-	//	TIM14->ARR = PMSM_Speed / 32; //32 - number of items in the sine table between commutations (192/6 = 32)
-	//	TIM14->CR1 = 1;
-	//}
+		TIM14->ARR = PMSM_Speed / 32; //32 - number of items in the sine table between commutations (192/6 = 32)
+		//TIM14->DIER = 1;//enable the interrupt occurance on update event
+		TIM14->CR1 = 1;
+
+	}
 
 	// If Hall sensors value is valid
 	if ((PMSM_Sensors > 0 ) & (PMSM_Sensors < 7)) {
@@ -344,12 +349,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if(htim->Instance == TIM3){
 		// Overflow - the motor is stopped
 		if (PMSM_MotorSpeedIsOK()){ PMSM_MotorStop(); }
-		HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_12);
+		HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_12);//blue LED
+#ifdef TIM3_DEBUG
+		HAL_UART_Transmit(&huart1, (uint8_t*)"Timer3 overflow\n\r", 17, HAL_MAX_DELAY);
+#endif
 	}
 	if(htim->Instance == TIM14){
 		uint16_t PWM1, PWM2, PWM3;
 		// If time to enable PMSM mode
-		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_3);
+		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_3);//green LED	
  		if (PMSM_ModeEnabled == 0) {
 			// Turn PWM outputs for working with sine wave
 /*			TIM_SelectOCxM(TIM1, TIM_Channel_1, TIM_OCMode_PWM1);

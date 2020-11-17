@@ -102,7 +102,7 @@ void MX_TIM3_Init(void)
   TIM_MasterConfigTypeDef sMasterConfig = {0};
 
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 0;
+  htim3.Init.Prescaler = PMSM_SPEED_TIMER_PRESCALER;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = PMSM_SPEED_TIMER_PERIOD;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -129,7 +129,7 @@ void MX_TIM14_Init(void)
 {
 
   htim14.Instance = TIM14;
-  htim14.Init.Prescaler = 0;
+  htim14.Init.Prescaler = PMSM_SPEED_TIMER_PRESCALER;
   htim14.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim14.Init.Period = 0;
   htim14.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -177,6 +177,7 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
     __HAL_RCC_TIM3_CLK_ENABLE();
 
     /* TIM3 interrupt Init */
+		TIM3->DIER = 1;
     HAL_NVIC_SetPriority(TIM3_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(TIM3_IRQn);
   /* USER CODE BEGIN TIM3_MspInit 1 */
