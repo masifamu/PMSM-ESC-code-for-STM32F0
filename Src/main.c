@@ -28,9 +28,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "stdio.h"
-#include "string.h"
-#include "pmsm.h"
+#include "PMSM_FUNC.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,8 +48,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-#ifdef MAIN_FUNC_DEBUG
-char printDataString[100] = {'\0',};
+#ifdef ENABLE_UART_DEBUG
+char stringToUART[100] = "buffer here\r\n";//{'\0',};
 #endif
 uint16_t ADCBuffer[6]={0,};
 /* USER CODE END PV */
@@ -74,7 +72,7 @@ void SystemClock_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	uint16_t throtle=0;
   /* USER CODE END 1 */
   
 
@@ -96,19 +94,16 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_TIM1_Init();
+  MX_USART1_UART_Init();
   MX_DMA_Init();
   MX_ADC_Init();
-  MX_TIM1_Init();
-  MX_TIM3_Init();
-  MX_TIM14_Init();
-  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 	HAL_ADCEx_Calibration_Start(&hadc);
 	HAL_ADC_Start_DMA(&hadc,(uint32_t*)&ADCBuffer,6);
 	
-	PMSM_Init();
+	PMSM_startPWMToYGB(0);
 	
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -116,38 +111,15 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-#ifdef MAIN_FUNC_DEBUG
+
     /* USER CODE BEGIN 3 */
-		snprintf(printDataString,100, "adcbuffer=%3d\n\r", ADCBuffer[0]);
-		HAL_UART_Transmit(&huart1, (uint8_t*)printDataString, strlen(printDataString), HAL_MAX_DELAY);
-#endif
-		//HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_3);
+		throtle=ADCBuffer[0];
+		PMSM_SetPWMWidthToYGB(PMSM_ADCToPWM(throtle));
 		
-		if (ADCBuffer[0] > PMSM_ADC_START) {
-    	// If Motor Is not run
-    	if (PMSM_MotorIsRun() == 0) {
-    		// Start motor
-    		// Check Reverse pin
-    		if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15) != 0){
-    			// Forward
-    			PMSM_MotorSetSpin(PMSM_CW);
-    		} else {
-    			// Backward
-    			PMSM_MotorSetSpin(PMSM_CCW);
-    		}
-    		PMSM_MotorCommutation(PMSM_HallSensorsGetPosition());
-    		PMSM_MotorSetRun();
-    	}
-#ifdef MAIN_FUNC_DEBUG
-			HAL_UART_Transmit(&huart1, (uint8_t*)"running\n\r", 9, HAL_MAX_DELAY);
-#endif
-   		PMSM_SetPWM(PMSM_ADCToPWM(ADCBuffer[0]));
-    } else {
-#ifdef MAIN_FUNC_DEBUG
-			HAL_UART_Transmit(&huart1, (uint8_t*)"stopped\n\r", 9, HAL_MAX_DELAY);
-#endif
-    	PMSM_SetPWM(0);
-    }
+		sendToUART("HELLO\r\n");
+		snprintf(stringToUART,100,"CNT1=%d\r\n",(uint32_t)__HAL_TIM_GetCompare(&htim1,TIM_CHANNEL_1));
+		sendToUART(stringToUART);
+		
   }
   /* USER CODE END 3 */
 }
