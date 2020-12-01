@@ -70,6 +70,12 @@ void Error_Handler(void);
 #define currentPin_GPIO_Port GPIOA
 #define heatSinkVoltage_Pin GPIO_PIN_5
 #define heatSinkVoltage_GPIO_Port GPIOA
+#define BL_Pin GPIO_PIN_7
+#define BL_GPIO_Port GPIOA
+#define GL_Pin GPIO_PIN_0
+#define GL_GPIO_Port GPIOB
+#define YL_Pin GPIO_PIN_1
+#define YL_GPIO_Port GPIOB
 #define BH_Pin GPIO_PIN_8
 #define BH_GPIO_Port GPIOA
 #define GH_Pin GPIO_PIN_9

@@ -52,6 +52,7 @@
 char stringToUART[100] = "buffer here\r\n";//{'\0',};
 #endif
 uint16_t ADCBuffer[6]={0,};
+extern uint8_t toUpdate;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -72,7 +73,7 @@ void SystemClock_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	uint16_t throtle=0;
+	//uint16_t throtle=0;
   /* USER CODE END 1 */
   
 
@@ -98,12 +99,13 @@ int main(void)
   MX_USART1_UART_Init();
   MX_DMA_Init();
   MX_ADC_Init();
+  MX_TIM14_Init();
+  MX_TIM16_Init();
   /* USER CODE BEGIN 2 */
 	HAL_ADCEx_Calibration_Start(&hadc);
 	HAL_ADC_Start_DMA(&hadc,(uint32_t*)&ADCBuffer,6);
 	
-	PMSM_startPWMToYGB(0);
-	
+	PMSM_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -113,13 +115,36 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		throtle=ADCBuffer[0];
-		PMSM_SetPWMWidthToYGB(PMSM_ADCToPWM(throtle));
+		//throtle=ADCBuffer[0];
 		
-		sendToUART("HELLO\r\n");
-		snprintf(stringToUART,100,"CNT1=%d\r\n",(uint32_t)__HAL_TIM_GetCompare(&htim1,TIM_CHANNEL_1));
-		sendToUART(stringToUART);
+		//sendToUART("HELLO\r\n");
+		//snprintf(stringToUART,100,"CNT1=%d\r\n",(uint32_t)__HAL_TIM_GetCompare(&htim1,TIM_CHANNEL_1));
+		//sendToUART(stringToUART);
 		
+		if (ADCBuffer[0] > PMSM_ADC_START) {
+    		// If Motor Is not run
+    		if (PMSM_MotorIsRun() == 0) {
+    			// Start motor
+    			// Check Reverse pin
+    			if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15) != 0) {
+    				// Forward
+    				PMSM_MotorSetSpin(PMSM_CW);
+    			} else {
+    				// Backward
+    				PMSM_MotorSetSpin(PMSM_CCW);
+    			}
+					BLDC_SetPWM(PMSM_ADCToPWM(ADCBuffer[0]));
+    			BLDC_MotorCommutation(PMSM_HallSensorsGetPosition());
+    			PMSM_MotorSetRun();
+    		}
+   			PMSM_updatePMSMPWMVariable(PMSM_ADCToPWM(ADCBuffer[0]));
+				//setting green LED
+				HAL_GPIO_WritePin(ledG_GPIO_Port,ledG_Pin,GPIO_PIN_SET);
+    }else {
+				//resetting green LED
+				HAL_GPIO_WritePin(ledG_GPIO_Port,ledG_Pin,GPIO_PIN_RESET);
+    		PMSM_updatePMSMPWMVariable(0);
+    }
   }
   /* USER CODE END 3 */
 }

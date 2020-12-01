@@ -5,11 +5,41 @@
 
 
 //defining variables
+// BLDC motor steps tables
+static const uint8_t PMSM_BRIDGE_STATE_FORWARD[8][6] =   // Motor steps
+{
+//	UH,UL		VH,VL	WH,WL
+   { 0,0	,	0,0	,	0,0 },  // 0 //000
+   { 0,1	,	0,0	,	1,0 },
+   { 0,0	,	1,0	,	0,1 },
+   { 0,1	,	1,0	,	0,0 },
+   { 1,0	,	0,1	,	0,0 },
+   { 0,0	,	0,1	,	1,0 },
+   { 1,0	,	0,0	,	0,1 },
+   { 0,0	,	0,0	,	0,0 },  // 0 //111
+};
+
+// BLDC motor backwared steps tables
+static const uint8_t PMSM_BRIDGE_STATE_BACKWARD[8][6] =   // Motor steps
+{
+//	UH,UL		VH,VL	WH,WL
+   { 0,0	,	0,0	,	0,0 },  // 0 //000
+   { 1,0	,	0,0	,	0,1 },
+   { 0,0	,	0,1	,	1,0 },
+   { 1,0	,	0,1	,	0,0 },
+   { 0,1	,	1,0	,	0,0 },
+   { 0,0	,	1,0	,	0,1 },
+   { 0,1	,	0,0	,	1,0 },
+   { 0,0	,	0,0	,	0,0 },  // 0 //111
+};
+
+uint8_t PMSM_STATE[6] = {0,0,0,0,0,0};
+
 // Sin table
 #define PMSM_SINTABLESIZE	192
 static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 {
-		{0,       0,      221},
+		{0,       0,      221},//0 index
 		{8,       0,      225},
 		{17,      0,      229},
 		{25,      0,      232},
@@ -41,7 +71,7 @@ static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 		{207,     0,      232},
 		{212,     0,      229},
 		{217,     0,      225},
-		{221,     0,      221},
+		{221,     0,      221},//32 index
 		{225,     0,      217},
 		{229,     0,      212},
 		{232,     0,      207},
@@ -73,7 +103,7 @@ static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 		{232,     0,      25},
 		{229,     0,      17},
 		{225,     0,      8},
-		{221,     0,      0},
+		{221,     0,      0},//64 index
 		{225,     8,      0},
 		{229,     17,     0},
 		{232,     25,     0},
@@ -105,7 +135,7 @@ static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 		{232,     207,    0},
 		{229,     212,    0},
 		{225,     217,    0},
-		{221,     221,    0},
+		{221,     221,    0},//96 index
 		{217,     225,    0},
 		{212,     229,    0},
 		{207,     232,    0},
@@ -137,7 +167,7 @@ static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 		{25,      232,    0},
 		{17,      229,    0},
 		{8,       225,    0},
-		{0,       221,    0},
+		{0,       221,    0},//128 index
 		{0,       225,    8},
 		{0,       229,    17},
 		{0,       232,    25},
@@ -169,7 +199,7 @@ static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 		{0,       232,    207},
 		{0,       229,    212},
 		{0,       225,    217},
-		{0,       221,    221},
+		{0,       221,    221},//160 index
 		{0,       217,    225},
 		{0,       212,    229},
 		{0,       207,    232},
@@ -210,6 +240,12 @@ static const uint8_t PMSM_STATE_TABLE_INDEX_BACKWARD[8] = {0, 32, 160, 0, 96, 64
 volatile uint8_t PMSM_SinTableIndex = 0;
 volatile uint8_t	PMSM_Sensors = 0;
 volatile uint8_t PMSM_MotorSpin = PMSM_CW;
+volatile uint16_t PMSM_Speed = 0;
+volatile uint16_t PMSM_Speed_prev = 0;
+volatile uint16_t PMSM_PWM = 0;
+volatile uint8_t PMSM_ModeEnabled = 0;
+volatile uint8_t PMSM_MotorRunFlag = 0;
+uint16_t PWMWIDTH=0,toUpdate=0;//for BLDC start
 // Timing (points in sine table)
 // sine table contains 192 items; 360/192 = 1.875 degrees per item
 volatile static int8_t PMSM_Timing = 10; // 15 * 1.875 = 28.125 degrees
@@ -220,9 +256,29 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
   //calculate the hall sensor position
 	PMSM_Sensors = PMSM_HallSensorsGetPosition();
 	
-	//calculate the current speed of rotor by getting the counter value of TIM3
-	//setting the TIM4 counter value calculated from TIM3
+	//calculate the current speed of rotor by getting the counter value of TIM3/TIM14
+	PMSM_Speed_prev = PMSM_Speed;
+  PMSM_Speed =__HAL_TIM_GetCounter(&htim14);
+  
+	__HAL_TIM_ENABLE(&htim14);
+	__HAL_TIM_ENABLE_IT(&htim14,TIM_IT_UPDATE);
+	HAL_TIM_Base_Start(&htim14);
 	
+	__HAL_TIM_SetCounter(&htim14,0);
+	
+	//setting the TIM4/TIM16 counter value calculated from TIM3/TIM14
+	if (PMSM_MotorSpeedIsOK()) {
+		// Enable timer TIM4 to generate sine
+		__HAL_TIM_SetCounter(&htim16,0);
+		// Set timer period
+		//TIM4->ARR = PMSM_Speed / 32; //32 - number of items in the sine table between commutations (192/6 = 32)
+		__HAL_TIM_SetAutoreload(&htim16,PMSM_Speed/32);
+		
+		__HAL_TIM_ENABLE(&htim16);
+		__HAL_TIM_ENABLE_IT(&htim16,TIM_IT_UPDATE);
+		HAL_TIM_Base_Start(&htim16);
+	}
+
 	// If Hall sensors value is valid(check here?)
   if ((PMSM_Sensors > 0 ) & (PMSM_Sensors < 7)) {
   // Do a phase correction
@@ -233,7 +289,58 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
 	HAL_GPIO_TogglePin(ledY_GPIO_Port,ledY_Pin);
 }
 
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+		//routine for TIM14 to calculate the speed//equivalent of TIM3
+    if(htim->Instance == TIM14){
+			// Overflow - the motor is stopped
+			if (PMSM_MotorSpeedIsOK()) {
+				PMSM_MotorStop();
+			}
+		}
+		
+		//routine for TIM16//equivalent of TIM4
+		if(htim->Instance == TIM16){
+			HAL_GPIO_TogglePin(ledB_GPIO_Port,ledB_Pin);
+			//enable PMSM mode here
+			// If time to enable PMSM mode
+			if (PMSM_ModeEnabled == 0) {
+				// Turn PWM outputs for working with sine wave
+				PMSM_startPWMToYGB();
+				PMSM_ModeEnabled = 1;
+			}
+			//calculate the pwm widths for three phases.
+			uint16_t pwmY,pwmG,pwmB;
+			pwmY = (uint16_t)((uint32_t)PMSM_PWM * PMSM_SINTABLE[PMSM_SinTableIndex][0]/255);
+			pwmG = (uint16_t)((uint32_t)PMSM_PWM * PMSM_SINTABLE[PMSM_SinTableIndex][1]/255);
+			pwmB = (uint16_t)((uint32_t)PMSM_PWM * PMSM_SINTABLE[PMSM_SinTableIndex][2]/255);
+			
+			//depending upon the spin set PWM width to three phases
+			if (PMSM_MotorSpin == PMSM_CW) {
+				// Forward rotation
+				PMSM_SetPWMWidthToYGB(pwmY,pwmG,pwmB);
+			}
+			else {
+				// Backward rotation
+				PMSM_SetPWMWidthToYGB(pwmY,pwmB,pwmG);
+			}
+			
+			//managing sineTable index
+			// Increment position in sine table
+			PMSM_SinTableIndex++;
+			if (PMSM_SinTableIndex > PMSM_SINTABLESIZE-1) {
+				PMSM_SinTableIndex = 0;
+			}
+		}
+}
+
 //defining functions
+
+// Initialize of all needed peripheral
+void PMSM_Init(void) {
+	PMSM_MotorStop();
+}
+
 uint8_t PMSM_HallSensorsGetPosition(void) {
 	uint8_t temp=(uint8_t)((GPIOB->IDR) & (GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7))>>5;
 	return temp;
@@ -245,42 +352,49 @@ void sendToUART(char *st){
 }
 #endif
 
-void PMSM_SetPWMWidthToYGB(uint16_t mThrottle){
-	uint16_t pwmY,pwmG,pwmB;
-	//calculate the pwm widths for three phases.
-	pwmY = (uint16_t)((uint32_t)mThrottle * PMSM_SINTABLE[PMSM_SinTableIndex][0]/255);
-	pwmG = (uint16_t)((uint32_t)mThrottle * PMSM_SINTABLE[PMSM_SinTableIndex][1]/255);
-	pwmB = (uint16_t)((uint32_t)mThrottle * PMSM_SINTABLE[PMSM_SinTableIndex][2]/255);
-	
+void PMSM_SetPWMWidthToYGB(uint16_t wY,uint16_t wG,uint16_t wB){
 	//set pwm width for the three phases.
-	__HAL_TIM_SetCompare(&htim1,TIM_CHANNEL_3,pwmY);
-	__HAL_TIM_SetCompare(&htim1,TIM_CHANNEL_2,pwmG);
-	__HAL_TIM_SetCompare(&htim1,TIM_CHANNEL_1,pwmB);
-	
-	//managing sineTable index
-	// Increment position in sine table
-	PMSM_SinTableIndex++;
-	if (PMSM_SinTableIndex > PMSM_SINTABLESIZE-1) {
-		PMSM_SinTableIndex = 0;
+	if(PMSM_ModeEnabled == 1){
+		__HAL_TIM_SetCompare(&htim1,TIM_CHANNEL_3,wY);
+		__HAL_TIM_SetCompare(&htim1,TIM_CHANNEL_2,wG);
+		__HAL_TIM_SetCompare(&htim1,TIM_CHANNEL_1,wB);
 	}
 }
+// Set PWM (same for all phases)
+void PMSM_updatePMSMPWMVariable(uint16_t PWM){
+	if (PMSM_ModeEnabled == 0) {
+		if(toUpdate == CH1){
+			TIM1CH1(PWM);
+		}else if(toUpdate == CH2){
+			TIM1CH2(PWM);
+		}else if(toUpdate == CH3){
+			TIM1CH3(PWM);
+		}
+	}else {
+		PMSM_PWM = PWM;
+	}
+}
+
 void PMSM_setPWMFreq(uint16_t sfreq){
 	__HAL_TIM_SetCounter(&htim1,sfreq);
 }
+
 uint16_t PMSM_getPWMFreq(uint16_t gfreq){
 	//in futur, frequency calculation can be performed here 
 	return gfreq;
 }
-void PMSM_startPWMToYGB(uint16_t mappedThrottle){
+
+void PMSM_startPWMToYGB(void){
 	//setting frequency of PWM signal to the Motor
 	PMSM_setPWMFreq(PMSM_getPWMFreq(PWM_PERIOD));
 	//settting the PWM width of each channel
-	PMSM_SetPWMWidthToYGB(mappedThrottle);
+	//PMSM_SetPWMWidthToYGB(0,0,0);
 	//starting the PWM channels
 	HAL_TIM_PWM_Start(&htim1,TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim1,TIM_CHANNEL_2);
 	HAL_TIM_PWM_Start(&htim1,TIM_CHANNEL_3);
 }
+
 // Transform ADC value to value for writing to the timer register
 uint16_t PMSM_ADCToPWM(uint16_t ADC_VALUE) {
 	uint32_t tmp;
@@ -297,6 +411,7 @@ uint16_t PMSM_ADCToPWM(uint16_t ADC_VALUE) {
 		}
 	}
 }
+
 // Get index in sine table based on the sensor data, the timing and the direction of rotor rotation
 uint8_t	PMSM_GetState(uint8_t SensorsPosition) {
 	int16_t index;
@@ -318,6 +433,98 @@ uint8_t	PMSM_GetState(uint8_t SensorsPosition) {
 
 	return index;
 }
+
 void PMSM_MotorSetSpin(uint8_t spin) {
 	PMSM_MotorSpin = spin;
 }
+
+uint8_t PMSM_MotorSpeedIsOK(void) {
+	return ((PMSM_Speed_prev > 0) & (PMSM_Speed > 0));
+}
+
+uint8_t PMSM_MotorIsRun(void) {
+	return PMSM_MotorRunFlag;
+}
+
+uint16_t PMSM_GetSpeed(void) {
+	return PMSM_Speed;
+}
+
+void PMSM_MotorSetRun(void) {
+	PMSM_MotorRunFlag = 1;
+}
+
+// Stop a motor
+void PMSM_MotorStop(void){
+	PMSM_SetPWMWidthToYGB(0,0,0);
+	//upper switches
+	//turn them off
+	
+	//lower swithes
+	//turn them off
+	
+	//stopping the timers
+	__HAL_TIM_DISABLE(&htim14);
+	__HAL_TIM_DISABLE(&htim16);
+
+	PMSM_Speed = 0;
+	PMSM_Speed_prev = 0;
+	PMSM_MotorRunFlag = 0;
+	PMSM_ModeEnabled = 0;
+}
+
+void BLDC_MotorCommutation(uint16_t hallpos){
+	
+	if (PMSM_MotorSpin == PMSM_CW) {
+		memcpy(PMSM_STATE, PMSM_BRIDGE_STATE_FORWARD[hallpos], sizeof(PMSM_STATE));
+	}
+	else if(PMSM_MotorSpin == PMSM_CCW){
+		memcpy(PMSM_STATE, PMSM_BRIDGE_STATE_BACKWARD[hallpos], sizeof(PMSM_STATE));
+	}
+
+	// Disable if need
+	if (!PMSM_STATE[UH]) TIM1CH3(0);
+	if (!PMSM_STATE[UL]) HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
+	if (!PMSM_STATE[VH]) TIM1CH2(0);
+	if (!PMSM_STATE[VL]) HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+	if (!PMSM_STATE[WH]) TIM1CH1(0);
+	if (!PMSM_STATE[WL]) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
+
+	// Enable if need. If previous state is Enabled then not enable again. Else output do flip-flop.
+	if (PMSM_STATE[UH] & !PMSM_STATE[UL]) { 
+		toUpdate=CH3;
+		BLDC_UpdatePWMWidth(CH3);
+	}
+	if (PMSM_STATE[UL] & !PMSM_STATE[UH]) {
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
+	}
+	if (PMSM_STATE[VH] & !PMSM_STATE[VL]) {
+		toUpdate=CH2;
+		BLDC_UpdatePWMWidth(CH2);
+	}
+	if (PMSM_STATE[VL] & !PMSM_STATE[VH]) {
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+	}
+	if (PMSM_STATE[WH] & !PMSM_STATE[WL]) {
+		toUpdate=CH1;
+		BLDC_UpdatePWMWidth(CH1);
+	}
+	if (PMSM_STATE[WL] & !PMSM_STATE[WH]) {
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+	}
+}
+
+
+void BLDC_UpdatePWMWidth(uint8_t update){
+	if(update == CH1){
+		TIM1CH1(PWMWIDTH);
+	}else if(update == CH2){
+		TIM1CH2(PWMWIDTH);
+	}else if(update == CH3){
+		TIM1CH3(PWMWIDTH);
+	}
+}
+void BLDC_SetPWM(uint16_t pwm){
+	PWMWIDTH=pwm;
+}
+
