@@ -133,7 +133,6 @@ int main(void)
     				// Backward
     				PMSM_MotorSetSpin(PMSM_CCW);
     			}
-					BLDC_SetPWM(PMSM_ADCToPWM(ADCBuffer[0]));
     			BLDC_MotorCommutation(PMSM_HallSensorsGetPosition());
     			PMSM_MotorSetRun();
     		}

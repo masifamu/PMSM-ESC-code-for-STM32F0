@@ -39,7 +39,7 @@ uint8_t PMSM_STATE[6] = {0,0,0,0,0,0};
 #define PMSM_SINTABLESIZE	192
 static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 {
-		{0,       0,      221},//0 index
+		{0,       0,      221},//0 index, HS=3 and VL can be switched ON here.
 		{8,       0,      225},
 		{17,      0,      229},
 		{25,      0,      232},
@@ -71,7 +71,7 @@ static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 		{207,     0,      232},
 		{212,     0,      229},
 		{217,     0,      225},
-		{221,     0,      221},//32 index
+		{221,     0,      221},//32 index, here HS=2 and VLower can be switched ON
 		{225,     0,      217},
 		{229,     0,      212},
 		{232,     0,      207},
@@ -103,7 +103,7 @@ static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 		{232,     0,      25},
 		{229,     0,      17},
 		{225,     0,      8},
-		{221,     0,      0},//64 index
+		{221,     0,      0},//64 index, HS=6 and WL can be switched ON
 		{225,     8,      0},
 		{229,     17,     0},
 		{232,     25,     0},
@@ -135,7 +135,7 @@ static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 		{232,     207,    0},
 		{229,     212,    0},
 		{225,     217,    0},
-		{221,     221,    0},//96 index
+		{221,     221,    0},//96 index,HS=4 and WL can be switched ON
 		{217,     225,    0},
 		{212,     229,    0},
 		{207,     232,    0},
@@ -167,7 +167,7 @@ static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 		{25,      232,    0},
 		{17,      229,    0},
 		{8,       225,    0},
-		{0,       221,    0},//128 index
+		{0,       221,    0},//128 index, HS=5 and UL can be switched ON
 		{0,       225,    8},
 		{0,       229,    17},
 		{0,       232,    25},
@@ -199,7 +199,7 @@ static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 		{0,       232,    207},
 		{0,       229,    212},
 		{0,       225,    217},
-		{0,       221,    221},//160 index
+		{0,       221,    221},//160 index, HS=1 and UL can be switched ON
 		{0,       217,    225},
 		{0,       212,    229},
 		{0,       207,    232},
@@ -245,7 +245,7 @@ volatile uint16_t PMSM_Speed_prev = 0;
 volatile uint16_t PMSM_PWM = 0;
 volatile uint8_t PMSM_ModeEnabled = 0;
 volatile uint8_t PMSM_MotorRunFlag = 0;
-uint16_t PWMWIDTH=0,toUpdate=0;//for BLDC start
+volatile uint16_t toUpdate=0;//for BLDC start
 // Timing (points in sine table)
 // sine table contains 192 items; 360/192 = 1.875 degrees per item
 volatile static int8_t PMSM_Timing = 10; // 15 * 1.875 = 28.125 degrees
@@ -255,7 +255,7 @@ volatile static int8_t PMSM_Timing = 10; // 15 * 1.875 = 28.125 degrees
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
   //calculate the hall sensor position
 	PMSM_Sensors = PMSM_HallSensorsGetPosition();
-	
+	PMSM_MotorManageLowerSwitches(PMSM_Sensors);
 	//calculate the current speed of rotor by getting the counter value of TIM3/TIM14
 	PMSM_Speed_prev = PMSM_Speed;
   PMSM_Speed =__HAL_TIM_GetCounter(&htim14);
@@ -364,11 +364,11 @@ void PMSM_SetPWMWidthToYGB(uint16_t wY,uint16_t wG,uint16_t wB){
 void PMSM_updatePMSMPWMVariable(uint16_t PWM){
 	if (PMSM_ModeEnabled == 0) {
 		if(toUpdate == CH1){
-			TIM1CH1(PWM);
+			TIM1->CCR1=PWM;
 		}else if(toUpdate == CH2){
-			TIM1CH2(PWM);
+			TIM1->CCR2=PWM;
 		}else if(toUpdate == CH3){
-			TIM1CH3(PWM);
+			TIM1->CCR3=PWM;
 		}
 	}else {
 		PMSM_PWM = PWM;
@@ -462,6 +462,9 @@ void PMSM_MotorStop(void){
 	
 	//lower swithes
 	//turn them off
+	HAL_GPIO_WritePin(YL_GPIO_Port, YL_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GL_GPIO_Port, GL_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(BL_GPIO_Port, BL_Pin, GPIO_PIN_SET);
 	
 	//stopping the timers
 	__HAL_TIM_DISABLE(&htim14);
@@ -483,48 +486,40 @@ void BLDC_MotorCommutation(uint16_t hallpos){
 	}
 
 	// Disable if need
-	if (!PMSM_STATE[UH]) TIM1CH3(0);
-	if (!PMSM_STATE[UL]) HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
-	if (!PMSM_STATE[VH]) TIM1CH2(0);
-	if (!PMSM_STATE[VL]) HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-	if (!PMSM_STATE[WH]) TIM1CH1(0);
-	if (!PMSM_STATE[WL]) HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
+	if (!PMSM_STATE[UH]) TIM1->CCR3=0;
+	if (!PMSM_STATE[UL]) HAL_GPIO_WritePin(YL_GPIO_Port, YL_Pin, GPIO_PIN_SET);
+	if (!PMSM_STATE[VH]) TIM1->CCR2=0;
+	if (!PMSM_STATE[VL]) HAL_GPIO_WritePin(GL_GPIO_Port, GL_Pin, GPIO_PIN_SET);
+	if (!PMSM_STATE[WH]) TIM1->CCR1=0;
+	if (!PMSM_STATE[WL]) HAL_GPIO_WritePin(BL_GPIO_Port, BL_Pin, GPIO_PIN_SET);
 
 	// Enable if need. If previous state is Enabled then not enable again. Else output do flip-flop.
-	if (PMSM_STATE[UH] & !PMSM_STATE[UL]) { 
-		toUpdate=CH3;
-		BLDC_UpdatePWMWidth(CH3);
-	}
-	if (PMSM_STATE[UL] & !PMSM_STATE[UH]) {
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
-	}
-	if (PMSM_STATE[VH] & !PMSM_STATE[VL]) {
-		toUpdate=CH2;
-		BLDC_UpdatePWMWidth(CH2);
-	}
-	if (PMSM_STATE[VL] & !PMSM_STATE[VH]) {
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
-	}
-	if (PMSM_STATE[WH] & !PMSM_STATE[WL]) {
-		toUpdate=CH1;
-		BLDC_UpdatePWMWidth(CH1);
-	}
-	if (PMSM_STATE[WL] & !PMSM_STATE[WH]) {
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
-	}
+	if (PMSM_STATE[UH] & !PMSM_STATE[UL]) { toUpdate = CH3; }
+	if (PMSM_STATE[UL] & !PMSM_STATE[UH]) { HAL_GPIO_WritePin(YL_GPIO_Port, YL_Pin, GPIO_PIN_RESET); }
+	if (PMSM_STATE[VH] & !PMSM_STATE[VL]) {	toUpdate = CH2; }
+	if (PMSM_STATE[VL] & !PMSM_STATE[VH]) { HAL_GPIO_WritePin(GL_GPIO_Port, GL_Pin, GPIO_PIN_RESET); }
+	if (PMSM_STATE[WH] & !PMSM_STATE[WL]) {	toUpdate = CH1; }
+	if (PMSM_STATE[WL] & !PMSM_STATE[WH]) {	HAL_GPIO_WritePin(BL_GPIO_Port, BL_Pin, GPIO_PIN_RESET); }
 }
 
-
-void BLDC_UpdatePWMWidth(uint8_t update){
-	if(update == CH1){
-		TIM1CH1(PWMWIDTH);
-	}else if(update == CH2){
-		TIM1CH2(PWMWIDTH);
-	}else if(update == CH3){
-		TIM1CH3(PWMWIDTH);
+void PMSM_MotorManageLowerSwitches(uint16_t hallpos){
+	
+	if (PMSM_MotorSpin == PMSM_CW) {
+		memcpy(PMSM_STATE, PMSM_BRIDGE_STATE_FORWARD[hallpos], sizeof(PMSM_STATE));
 	}
+	else if(PMSM_MotorSpin == PMSM_CCW){
+		memcpy(PMSM_STATE, PMSM_BRIDGE_STATE_BACKWARD[hallpos], sizeof(PMSM_STATE));
+	}
+
+	// Disable if need
+	if (!PMSM_STATE[UL]) HAL_GPIO_WritePin(YL_GPIO_Port, YL_Pin, GPIO_PIN_SET);
+	if (!PMSM_STATE[VL]) HAL_GPIO_WritePin(GL_GPIO_Port, GL_Pin, GPIO_PIN_SET);
+	if (!PMSM_STATE[WL]) HAL_GPIO_WritePin(BL_GPIO_Port, BL_Pin, GPIO_PIN_SET);
+
+	// Enable if need. If previous state is Enabled then not enable again. Else output do flip-flop.
+	if ((PMSM_STATE[UL] & !PMSM_STATE[UH]) && __HAL_TIM_GetCompare(&htim1,TIM_CHANNEL_3) == 0) { HAL_GPIO_WritePin(YL_GPIO_Port, YL_Pin, GPIO_PIN_RESET); }
+	if ((PMSM_STATE[VL] & !PMSM_STATE[VH]) && __HAL_TIM_GetCompare(&htim1,TIM_CHANNEL_2) == 0) { HAL_GPIO_WritePin(GL_GPIO_Port, GL_Pin, GPIO_PIN_RESET); }
+	if ((PMSM_STATE[WL] & !PMSM_STATE[WH]) && __HAL_TIM_GetCompare(&htim1,TIM_CHANNEL_3) == 0) {	HAL_GPIO_WritePin(BL_GPIO_Port, BL_Pin, GPIO_PIN_RESET); }
 }
-void BLDC_SetPWM(uint16_t pwm){
-	PWMWIDTH=pwm;
-}
+
 

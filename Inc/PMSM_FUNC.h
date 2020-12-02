@@ -23,10 +23,6 @@
 #define WH	4
 #define WL	5
 
-#define TIM1CH1(x) TIM1->CCR1=x
-#define TIM1CH2(x) TIM1->CCR2=x
-#define TIM1CH3(x) TIM1->CCR3=x
-
 #define CH1 1
 #define CH2 2
 #define CH3 3
@@ -56,4 +52,5 @@ void PMSM_Init(void);
 void BLDC_MotorCommutation(uint16_t hallpos);
 void BLDC_UpdatePWMWidth(uint8_t update);
 void BLDC_SetPWM(uint16_t pwm);
+void PMSM_MotorManageLowerSwitches(uint16_t hallpos);
 #endif

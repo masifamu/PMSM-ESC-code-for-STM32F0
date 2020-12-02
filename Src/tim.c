@@ -100,7 +100,7 @@ void MX_TIM14_Init(void)
 {
 
   htim14.Instance = TIM14;
-  htim14.Init.Prescaler = 80;
+  htim14.Init.Prescaler = PMSM_TIMER14_PRESCALER;
   htim14.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim14.Init.Period = PMSM_TIMER14_PERIOD;
   htim14.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -116,7 +116,7 @@ void MX_TIM16_Init(void)
 {
 
   htim16.Instance = TIM16;
-  htim16.Init.Prescaler = 80;
+  htim16.Init.Prescaler = PMSM_TIMER14_PRESCALER;
   htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim16.Init.Period = 0;
   htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
