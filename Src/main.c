@@ -52,7 +52,6 @@
 char stringToUART[100] = "buffer here\r\n";//{'\0',};
 #endif
 uint16_t ADCBuffer[6]={0,};
-extern uint8_t toUpdate;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -73,7 +72,7 @@ void SystemClock_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	//uint16_t throtle=0;
+
   /* USER CODE END 1 */
   
 
@@ -115,11 +114,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		//throtle=ADCBuffer[0];
 		
 		//sendToUART("HELLO\r\n");
-		//snprintf(stringToUART,100,"CNT1=%d\r\n",(uint32_t)__HAL_TIM_GetCompare(&htim1,TIM_CHANNEL_1));
-		//sendToUART(stringToUART);
+		snprintf(stringToUART,100,"ADCBuffer=%d\r\n",ADCBuffer[0]);
+		sendToUART(stringToUART);
 		
 		if (ADCBuffer[0] > PMSM_ADC_START) {
     		// If Motor Is not run

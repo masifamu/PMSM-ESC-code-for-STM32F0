@@ -255,7 +255,7 @@ volatile static int8_t PMSM_Timing = 10; // 15 * 1.875 = 28.125 degrees
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
   //calculate the hall sensor position
 	PMSM_Sensors = PMSM_HallSensorsGetPosition();
-	PMSM_MotorManageLowerSwitches(PMSM_Sensors);
+	
 	//calculate the current speed of rotor by getting the counter value of TIM3/TIM14
 	PMSM_Speed_prev = PMSM_Speed;
   PMSM_Speed =__HAL_TIM_GetCounter(&htim14);
@@ -278,13 +278,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
 		__HAL_TIM_ENABLE_IT(&htim16,TIM_IT_UPDATE);
 		HAL_TIM_Base_Start(&htim16);
 	}
-
+	
 	// If Hall sensors value is valid(check here?)
   if ((PMSM_Sensors > 0 ) & (PMSM_Sensors < 7)) {
   // Do a phase correction
   	PMSM_SinTableIndex = PMSM_GetState(PMSM_Sensors);
 	}
-			
+	
 	//blinking the yellow LED
 	HAL_GPIO_TogglePin(ledY_GPIO_Port,ledY_Pin);
 }
@@ -311,9 +311,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			}
 			//calculate the pwm widths for three phases.
 			uint16_t pwmY,pwmG,pwmB;
-			pwmY = (uint16_t)((uint32_t)PMSM_PWM * PMSM_SINTABLE[PMSM_SinTableIndex][0]/255);
+			pwmB = (uint16_t)((uint32_t)PMSM_PWM * PMSM_SINTABLE[PMSM_SinTableIndex][0]/255);
 			pwmG = (uint16_t)((uint32_t)PMSM_PWM * PMSM_SINTABLE[PMSM_SinTableIndex][1]/255);
-			pwmB = (uint16_t)((uint32_t)PMSM_PWM * PMSM_SINTABLE[PMSM_SinTableIndex][2]/255);
+			pwmY = (uint16_t)((uint32_t)PMSM_PWM * PMSM_SINTABLE[PMSM_SinTableIndex][2]/255);
 			
 			//depending upon the spin set PWM width to three phases
 			if (PMSM_MotorSpin == PMSM_CW) {
@@ -331,6 +331,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			if (PMSM_SinTableIndex > PMSM_SINTABLESIZE-1) {
 				PMSM_SinTableIndex = 0;
 			}
+			PMSM_MotorManageLowerSwitchesForward(PMSM_Sensors);
 		}
 }
 
@@ -502,24 +503,22 @@ void BLDC_MotorCommutation(uint16_t hallpos){
 	if (PMSM_STATE[WL] & !PMSM_STATE[WH]) {	HAL_GPIO_WritePin(BL_GPIO_Port, BL_Pin, GPIO_PIN_RESET); }
 }
 
-void PMSM_MotorManageLowerSwitches(uint16_t hallpos){
-	
-	if (PMSM_MotorSpin == PMSM_CW) {
-		memcpy(PMSM_STATE, PMSM_BRIDGE_STATE_FORWARD[hallpos], sizeof(PMSM_STATE));
+void PMSM_MotorManageLowerSwitchesForward(uint16_t hallpos){
+	if(hallpos == 5 && PMSM_SinTableIndex >= 128 && PMSM_SinTableIndex <= 160){ 
+		HAL_GPIO_WritePin(BL_GPIO_Port,BL_Pin,GPIO_PIN_RESET);
+	}else if(!(PMSM_SinTableIndex >= 160 && PMSM_SinTableIndex <= 182)){
+		HAL_GPIO_WritePin(BL_GPIO_Port,BL_Pin,GPIO_PIN_SET);
 	}
-	else if(PMSM_MotorSpin == PMSM_CCW){
-		memcpy(PMSM_STATE, PMSM_BRIDGE_STATE_BACKWARD[hallpos], sizeof(PMSM_STATE));
+	if(hallpos == 3 && PMSM_SinTableIndex >= 1 && PMSM_SinTableIndex <= 32){
+		HAL_GPIO_WritePin(GL_GPIO_Port,GL_Pin,GPIO_PIN_RESET);
+	}else if(!(PMSM_SinTableIndex >= 32 && PMSM_SinTableIndex <= 54)){
+		HAL_GPIO_WritePin(GL_GPIO_Port,GL_Pin,GPIO_PIN_SET);
 	}
-
-	// Disable if need
-	if (!PMSM_STATE[UL]) HAL_GPIO_WritePin(YL_GPIO_Port, YL_Pin, GPIO_PIN_SET);
-	if (!PMSM_STATE[VL]) HAL_GPIO_WritePin(GL_GPIO_Port, GL_Pin, GPIO_PIN_SET);
-	if (!PMSM_STATE[WL]) HAL_GPIO_WritePin(BL_GPIO_Port, BL_Pin, GPIO_PIN_SET);
-
-	// Enable if need. If previous state is Enabled then not enable again. Else output do flip-flop.
-	if ((PMSM_STATE[UL] & !PMSM_STATE[UH]) && __HAL_TIM_GetCompare(&htim1,TIM_CHANNEL_3) == 0) { HAL_GPIO_WritePin(YL_GPIO_Port, YL_Pin, GPIO_PIN_RESET); }
-	if ((PMSM_STATE[VL] & !PMSM_STATE[VH]) && __HAL_TIM_GetCompare(&htim1,TIM_CHANNEL_2) == 0) { HAL_GPIO_WritePin(GL_GPIO_Port, GL_Pin, GPIO_PIN_RESET); }
-	if ((PMSM_STATE[WL] & !PMSM_STATE[WH]) && __HAL_TIM_GetCompare(&htim1,TIM_CHANNEL_3) == 0) {	HAL_GPIO_WritePin(BL_GPIO_Port, BL_Pin, GPIO_PIN_RESET); }
+	if(hallpos == 6 && PMSM_SinTableIndex >= 64 && PMSM_SinTableIndex <= 96){
+		HAL_GPIO_WritePin(YL_GPIO_Port,YL_Pin,GPIO_PIN_RESET);
+	}else if(!(PMSM_SinTableIndex >= 96 && PMSM_SinTableIndex <= 118)){
+		HAL_GPIO_WritePin(YL_GPIO_Port,YL_Pin,GPIO_PIN_SET);
+	}
 }
 
 
