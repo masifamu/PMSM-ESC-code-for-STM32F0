@@ -234,6 +234,7 @@ static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 		{0,       8,      225}
 };
 */
+/*
 static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 {
 	{0,	    0,	    0},
@@ -429,9 +430,206 @@ static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 	{0,	    0,	   33},
 	{0,	    0,	   17}
 };
+*/
+static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
+{
+	{0,	    0,	    8},
+	{0,	    0,	   17},
+	{0,	    0,	   33},
+	{0,	    0,	   50},
+	{0,	    0,	   66},
+	{0,	    0,	   82},
+	{0,	    0,	   98},
+	{0,	    0,	  113},
+	{0,	    0,	  128},
+	{0,	    0,	  142},
+	{0,	    0,	  155},
+	{0,	    0,	  168},
+	{0,	    0,	  180},
+	{0,	    0,	  192},
+	{0,	    0,	  202},
+	{0,	    0,	  212},
+	{0,	    0,	  221},
+	{0,	    0,	  229},
+	{0,	    0,	  236},
+	{0,	    0,	  241},
+	{0,	    0,	  246},
+	{0,	    0,	  250},
+	{0,	    0,	  253},
+	{0,	    0,	  254},
+	{0,	    0,	  255},
+	{0,	    0,	  254},
+	{0,	    0,	  253},
+	{0,	    0,	  250},
+	{0,	    0,	  246},
+	{0,	    0,	  241},
+	{0,	    0,	  236},
+	{0,	    0,	  229},
+	{0,	    0,	  221},
+	{0,	    0,	  229},
+	{0,	    0,	  236},
+	{0,	    0,	  241},
+	{0,	    0,	  246},
+	{0,	    0,	  250},
+	{0,	    0,	  253},
+	{0,	    0,	  254},
+	{0,	    0,	  255},
+	{0,	    0,	  254},
+	{0,	    0,	  253},
+	{0,	    0,	  250},
+	{0,	    0,	  246},
+	{0,	    0,	  241},
+	{0,	    0,	  236},
+	{0,	    0,	  229},
+	{0,	    0,	  221},
+	{0,	    0,	  212},
+	{0,	    0,	  202},
+	{0,	    0,	  192},
+	{0,	    0,	  180},
+	{0,	    0,	  168},
+	{0,	    0,	  155},
+	{0,	    0,	  142},
+	{0,	    0,	  128},
+	{0,	    0,	  113},
+	{0,	    0,	   98},
+	{0,	    0,	   82},
+	{0,	    0,	   66},
+	{0,	    0,	   50},
+	{0,	    0,	   33},
+	{0,	    0,	   17},
+	{0,	    0,	    8},
+	{0,	   17,	    0},
+	{0,	   33,	    0},
+	{0,	   50,	    0},
+	{0,	   66,	    0},
+	{0,	   82,	    0},
+	{0,	   98,	    0},
+	{0,	  113,	    0},
+	{0,	  128,	    0},
+	{0,	  142,	    0},
+	{0,	  155,	    0},
+	{0,	  168,	    0},
+	{0,	  180,	    0},
+	{0,	  192,	    0},
+	{0,	  202,	    0},
+	{0,	  212,	    0},
+	{0,	  221,	    0},
+	{0,	  229,	    0},
+	{0,	  236,	    0},
+	{0,	  241,	    0},
+	{0,	  246,	    0},
+	{0,	  250,	    0},
+	{0,	  253,	    0},
+	{0,	  254,	    0},
+	{0,	  255,	    0},
+	{0,	  254,	    0},
+	{0,	  253,	    0},
+	{0,	  250,	    0},
+	{0,	  246,	    0},
+	{0,	  241,	    0},
+	{0,	  236,	    0},
+	{0,	  229,	    0},
+	{0,	  221,	    0},
+	{0,	  229,	    0},
+	{0,	  236,	    0},
+	{0,	  241,	    0},
+	{0,	  246,	    0},
+	{0,	  250,	    0},
+	{0,	  253,	    0},
+	{0,	  254,	    0},
+	{0,	  255,	    0},
+	{0,	  254,	    0},
+	{0,	  253,	    0},
+	{0,	  250,	    0},
+	{0,	  246,	    0},
+	{0,	  241,	    0},
+	{0,	  236,	    0},
+	{0,	  229,	    0},
+	{0,	  221,	    0},
+	{0,	  212,	    0},
+	{0,	  202,	    0},
+	{0,	  192,	    0},
+	{0,	  180,	    0},
+	{0,	  168,	    0},
+	{0,	  155,	    0},
+	{0,	  142,	    0},
+	{0,	  128,	    0},
+	{0,	  113,	    0},
+	{0,	   98,	    0},
+	{0,	   82,	    0},
+	{0,	   66,	    0},
+	{0,	   50,	    0},
+	{0,	   33,	    0},
+	{0,	   17,	    0},
+	{0,	    8,	    0},
+	{17,	    0,	    0},
+	{33,	    0,	    0},
+	{50,	    0,	    0},
+	{66,	    0,	    0},
+	{82,	    0,	    0},
+	{98,	    0,	    0},
+	{113,	    0,	    0},
+	{128,	    0,	    0},
+	{142,	    0,	    0},
+	{155,	    0,	    0},
+	{168,	    0,	    0},
+	{180,	    0,	    0},
+	{192,	    0,	    0},
+	{202,	    0,	    0},
+	{212,	    0,	    0},
+	{221,	    0,	    0},
+	{229,	    0,	    0},
+	{236,	    0,	    0},
+	{241,	    0,	    0},
+	{246,	    0,	    0},
+	{250,	    0,	    0},
+	{253,	    0,	    0},
+	{254,	    0,	    0},
+	{255,	    0,	    0},
+	{254,	    0,	    0},
+	{253,	    0,	    0},
+	{250,	    0,	    0},
+	{246,	    0,	    0},
+	{241,	    0,	    0},
+	{236,	    0,	    0},
+	{229,	    0,	    0},
+	{221,	    0,	    0},
+	{229,	    0,	    0},
+	{236,	    0,	    0},
+	{241,	    0,	    0},
+	{246,	    0,	    0},
+	{250,	    0,	    0},
+	{253,	    0,	    0},
+	{254,	    0,	    0},
+	{255,	    0,	    0},
+	{254,	    0,	    0},
+	{253,	    0,	    0},
+	{250,	    0,	    0},
+	{246,	    0,	    0},
+	{241,	    0,	    0},
+	{236,	    0,	    0},
+	{229,	    0,	    0},
+	{221,	    0,	    0},
+	{212,	    0,	    0},
+	{202,	    0,	    0},
+	{192,	    0,	    0},
+	{180,	    0,	    0},
+	{168,	    0,	    0},
+	{155,	    0,	    0},
+	{142,	    0,	    0},
+	{128,	    0,	    0},
+	{113,	    0,	    0},
+	{98,	    0,	    0},
+	{82,	    0,	    0},
+	{66,	    0,	    0},
+	{50,	    0,	    0},
+	{33,	    0,	    0},
+	{17,	    0,	    0},
+};
 
 // Phase correction table(check values in these tables
-static const uint8_t PMSM_STATE_TABLE_INDEX_FORWARD[8] = {0, 160, 32, 0, 96, 128, 64, 0};
+//static const uint8_t PMSM_STATE_TABLE_INDEX_FORWARD[8] = {0, 160, 32, 0, 96, 128, 64, 0};
+static const uint8_t PMSM_STATE_TABLE_INDEX_FORWARD[8] = {0, 32, 96, 64, 164, 0, 128, 0};
 static const uint8_t PMSM_STATE_TABLE_INDEX_BACKWARD[8] = {0, 32, 160, 0, 96, 64, 128, 0};
 
 volatile uint8_t PMSM_SinTableIndex = 0;
@@ -503,7 +701,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			// If time to enable PMSM mode
 			if (PMSM_ModeEnabled == 0) {
 				// Turn PWM outputs for working with sine wave
-				PMSM_startPWMToYGB();
+				//PMSM_startPWMToYGB();
 				PMSM_ModeEnabled = 1;
 			}
 			//calculate the pwm widths for three phases.
@@ -537,6 +735,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 // Initialize of all needed peripheral
 void PMSM_Init(void) {
 	PMSM_MotorStop();
+	PMSM_startPWMToYGB();
 }
 
 uint8_t PMSM_HallSensorsGetPosition(void) {
@@ -701,19 +900,19 @@ void BLDC_MotorCommutation(uint16_t hallpos){
 }
 
 void PMSM_MotorManageLowerSwitchesForward(uint16_t hallpos){
-	if(hallpos == 5 && PMSM_SinTableIndex >= 128 && PMSM_SinTableIndex <= 160){ 
+	if(PMSM_SinTableIndex >= 32 && PMSM_SinTableIndex <= 96){ 
 		HAL_GPIO_WritePin(YL_GPIO_Port,YL_Pin,GPIO_PIN_RESET);
-	}else if(!(PMSM_SinTableIndex >= 160 && PMSM_SinTableIndex <= 182)){
+	}else{
 		HAL_GPIO_WritePin(YL_GPIO_Port,YL_Pin,GPIO_PIN_SET);
 	}
-	if(hallpos == 3 && PMSM_SinTableIndex >= 1 && PMSM_SinTableIndex <= 32){
-		HAL_GPIO_WritePin(GL_GPIO_Port,GL_Pin,GPIO_PIN_RESET);
-	}else if(!(PMSM_SinTableIndex >= 32 && PMSM_SinTableIndex <= 54)){
+	if(PMSM_SinTableIndex >= 31 && PMSM_SinTableIndex <= 165){
 		HAL_GPIO_WritePin(GL_GPIO_Port,GL_Pin,GPIO_PIN_SET);
+	}else{
+		HAL_GPIO_WritePin(GL_GPIO_Port,GL_Pin,GPIO_PIN_RESET);
 	}
-	if(hallpos == 6 && PMSM_SinTableIndex >= 64 && PMSM_SinTableIndex <= 96){
+	if(PMSM_SinTableIndex >= 97 && PMSM_SinTableIndex <= 164){
 		HAL_GPIO_WritePin(BL_GPIO_Port,BL_Pin,GPIO_PIN_RESET);
-	}else if(!(PMSM_SinTableIndex >= 96 && PMSM_SinTableIndex <= 118)){
+	}else{
 		HAL_GPIO_WritePin(BL_GPIO_Port,BL_Pin,GPIO_PIN_SET);
 	}
 }
