@@ -43,7 +43,7 @@
 //uint8_t stringToUART[50] = {'\0',};
 //#endif
 void sendToUART(char *);
-void PMSM_SetPWMWidthToYGB(uint16_t wY,uint16_t wG,uint16_t wB);
+void PMSM_SetPWMWidthToYGB(uint16_t ygb);
 void PMSM_startPWMToYGB(void);
 void PMSM_setPWMFreq(uint16_t sfreq);
 uint16_t PMSM_getPWMFreq(uint16_t gfreq);
