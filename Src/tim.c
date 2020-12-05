@@ -39,7 +39,7 @@ void MX_TIM1_Init(void)
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 0;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 480;
+  htim1.Init.Period = 2884;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -95,7 +95,7 @@ void MX_TIM1_Init(void)
   HAL_TIM_MspPostInit(&htim1);
 
 }
-/* TIM14 init function using at place of TIM3 */
+/* TIM14 init function */
 void MX_TIM14_Init(void)
 {
 
@@ -109,9 +109,9 @@ void MX_TIM14_Init(void)
   {
     Error_Handler();
   }
-
+__HAL_TIM_ENABLE_IT(&htim14,TIM_IT_UPDATE);
 }
-/* TIM16 init function using at place of TIM4 */
+/* TIM16 init function */
 void MX_TIM16_Init(void)
 {
 
@@ -126,7 +126,7 @@ void MX_TIM16_Init(void)
   {
     Error_Handler();
   }
-
+__HAL_TIM_ENABLE_IT(&htim16,TIM_IT_UPDATE);
 }
 
 void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)

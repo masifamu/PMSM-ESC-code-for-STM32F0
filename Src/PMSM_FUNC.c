@@ -514,7 +514,7 @@ volatile uint16_t PMSM_PWM = 0;
 volatile uint8_t PMSM_ModeEnabled = 0;
 volatile uint8_t PMSM_MotorRunFlag = 0;
 volatile uint16_t toUpdate=0;//for BLDC start
-volatile uint8_t indexOffset=0;
+volatile uint8_t isTIMConfigured=0;
 // Timing (points in sine table)
 // sine table contains 192 items; 360/192 = 1.875 degrees per item
 volatile static uint8_t PMSM_Timing = 10; // 15 * 1.875 = 28.125 degrees
@@ -522,59 +522,29 @@ volatile static uint8_t PMSM_Timing = 10; // 15 * 1.875 = 28.125 degrees
 
 //defining the callbacks here
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
-  //calculate the hall sensor position
-	PMSM_Sensors = PMSM_HallSensorsGetPosition();
 
-	/*
-	// If Hall sensors value is valid(check here?)
-  if ((PMSM_Sensors > 0 ) & (PMSM_Sensors < 7)) {
-  // Do a phase correction
-		if(PMSM_SinTableIndex ==32){
-			PMSM_SinTableIndex = 33;//PMSM_GetState(PMSM_Sensors);
-		}else{
-			PMSM_SinTableIndex = 0;
-		}
-	}
-	*/
+	PMSM_Sensors = PMSM_HallSensorsGetPosition();//get rotor postion
+	BLDC_MotorCommutation(PMSM_Sensors);//commutate stator
+
 	if(PMSM_ModeEnabled == 1){//if true: meaning timer has initialized before coming to this point
-		if(PMSM_SinTableIndex <= 32){//rotor is moving ahead
-			PMSM_SinTableIndex = 33;
-		}
-		if(PMSM_SinTableIndex > 33 && PMSM_SinTableIndex <= 64){
-			PMSM_SinTableIndex = 0;
-		}
+		if(PMSM_SinTableIndex <= 32) PMSM_SinTableIndex = 33;
+		if(PMSM_SinTableIndex > 33 && PMSM_SinTableIndex <= 64) PMSM_SinTableIndex = 0;
 	}
 	
 	//calculate the current speed of rotor by getting the counter value of TIM3/TIM14
-	PMSM_Speed_prev = PMSM_Speed;
-  PMSM_Speed =__HAL_TIM_GetCounter(&htim14);
-  
-	__HAL_TIM_ENABLE(&htim14);
-	__HAL_TIM_ENABLE_IT(&htim14,TIM_IT_UPDATE);
-	HAL_TIM_Base_Start(&htim14);
-	
-	__HAL_TIM_SetCounter(&htim14,0);
+	PMSM_Speed_prev = PMSM_Speed;//set prev speed
+	PMSM_Speed = TIM14->CNT;//get speed
+	TIM14->CR1|=TIM_CR1_CEN;//enable
+	TIM14->CNT = 0;//set
 	
 	//setting the TIM4/TIM16 counter value calculated from TIM3/TIM14
 	if (PMSM_MotorSpeedIsOK()) {
-		// Enable timer TIM4 to generate sine
-		__HAL_TIM_SetCounter(&htim16,0);
-		// Set timer period
-		//TIM4->ARR = PMSM_Speed / 32; //32 - number of items in the sine table between commutations (192/6 = 32)
-		__HAL_TIM_SetAutoreload(&htim16,PMSM_Speed/32);
-		
-		__HAL_TIM_ENABLE(&htim16);
-		__HAL_TIM_ENABLE_IT(&htim16,TIM_IT_UPDATE);
-		HAL_TIM_Base_Start(&htim16);
-		// time to enable PMSM mode
+		TIM16->CNT = 0;//set
+		TIM16->ARR = PMSM_Speed / 32; //32 - number of items in the sine table between commutations (192/6 = 32)
+		TIM16->CR1|=TIM_CR1_CEN;//enable
 		if (PMSM_ModeEnabled == 0) PMSM_ModeEnabled = 1;
 	}
-	
-	
-	//calling the commutation
-	BLDC_MotorCommutation(PMSM_Sensors);
-	//blinking the yellow LED
-	//HAL_GPIO_TogglePin(ledY_GPIO_Port,ledY_Pin);
+	//HAL_GPIO_TogglePin(ledY_GPIO_Port,ledY_Pin);//yellow
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
@@ -582,22 +552,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		//routine for TIM14 to calculate the speed//equivalent of TIM3
     if(htim->Instance == TIM14){
 			// Overflow - the motor is stopped
-			if (PMSM_MotorSpeedIsOK()) {
-				PMSM_MotorStop();
-			}
+			if (PMSM_MotorSpeedIsOK()) PMSM_MotorStop();
 		}
 		
 		//routine for TIM16//equivalent of TIM4
 		if(htim->Instance == TIM16){
-			
-			//calculate the pwm widths for three phases.
-			uint16_t pwmYGB;
-			pwmYGB = (uint16_t)(((uint32_t)PMSM_PWM * PMSM_SINTABLE[PMSM_SinTableIndex])/255);
-			
-			//depending upon the the active phase update PWM width
-			if(toUpdate == CH1) TIM1->CCR1=pwmYGB;
-			else if(toUpdate == CH2) TIM1->CCR2=pwmYGB;
-			else if(toUpdate == CH3) TIM1->CCR3=pwmYGB;
+			PMSM_SetPWMWidthToYGB(PMSM_SinTableIndex);
 			
 			// Increment position in sine table
 			if(PMSM_SinTableIndex !=32 && PMSM_SinTableIndex !=64) PMSM_SinTableIndex++;
@@ -624,17 +584,14 @@ void sendToUART(char *st){
 }
 #endif
 
-void PMSM_SetPWMWidthToYGB(uint16_t ygb){
-	//set pwm width for the three phases.
-	//if(PMSM_ModeEnabled == 1){
-		if(toUpdate == CH1){
-			TIM1->CCR1=ygb;
-		}else if(toUpdate == CH2){
-			TIM1->CCR2=ygb;
-		}else if(toUpdate == CH3){
-			TIM1->CCR3=ygb;
-		}
-	//}
+void PMSM_SetPWMWidthToYGB(uint8_t stableIndex){
+	uint16_t pwmYGB;
+	pwmYGB = (uint16_t)(((uint32_t)PMSM_PWM * PMSM_SINTABLE[stableIndex])/255);//calculate width
+	
+	//depending upon the the active phase update PWM width
+	if(toUpdate == CH1) TIM1->CCR1=pwmYGB;
+	else if(toUpdate == CH2) TIM1->CCR2=pwmYGB;
+	else if(toUpdate == CH3) TIM1->CCR3=pwmYGB;
 }
 // Set PWM (same for all phases)
 void PMSM_updatePMSMPWMVariable(uint16_t PWM){

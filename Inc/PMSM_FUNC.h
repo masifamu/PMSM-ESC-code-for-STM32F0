@@ -36,14 +36,14 @@
 #define CH2 2
 #define CH3 3
 
-#define PMSM_TIMER14_PRESCALER		8
+#define PMSM_TIMER14_PRESCALER		48
 #define PMSM_TIMER14_PERIOD			0xFFFF // 65535
 
 //#ifdef ENABLE_UART_DEBUG
 //uint8_t stringToUART[50] = {'\0',};
 //#endif
 void sendToUART(char *);
-void PMSM_SetPWMWidthToYGB(uint16_t ygb);
+void PMSM_SetPWMWidthToYGB(uint8_t stableIndex);
 void PMSM_startPWMToYGB(void);
 void PMSM_setPWMFreq(uint16_t sfreq);
 uint16_t PMSM_getPWMFreq(uint16_t gfreq);
