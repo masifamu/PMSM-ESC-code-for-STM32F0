@@ -502,10 +502,10 @@ static const uint8_t PMSM_SINTABLE [PMSM_SINTABLESIZE][3] =
 
 // Phase correction table(check values in these tables
 //static const uint8_t PMSM_STATE_TABLE_INDEX_FORWARD[8] = {0, 160, 32, 0, 96, 128, 64, 0};
-static const uint8_t PMSM_STATE_TABLE_INDEX_FORWARD[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+uint8_t PMSM_STATE_TABLE_INDEX_FORWARD[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 static const uint8_t PMSM_STATE_TABLE_INDEX_BACKWARD[8] = {0, 32, 160, 0, 96, 64, 128, 0};
 
-volatile uint8_t PMSM_SinTableIndex = 0;
+volatile uint8_t PMSM_SinTableIndex = 0,PMSM_SinTableIndexPrev=0;
 volatile uint8_t	PMSM_Sensors = 0;
 volatile uint8_t PMSM_MotorSpin = PMSM_CW;
 volatile uint16_t PMSM_Speed = 0;
@@ -515,6 +515,8 @@ volatile uint8_t PMSM_ModeEnabled = 0;
 volatile uint8_t PMSM_MotorRunFlag = 0;
 volatile uint16_t toUpdate=0;//for BLDC start
 volatile uint8_t isTIMConfigured=0;
+char stringToUARTF[100] = "buffer here\r\n";//{'\0',};
+extern uint32_t globalTime;
 // Timing (points in sine table)
 // sine table contains 192 items; 360/192 = 1.875 degrees per item
 volatile static uint8_t PMSM_Timing = 10; // 15 * 1.875 = 28.125 degrees
@@ -522,14 +524,9 @@ volatile static uint8_t PMSM_Timing = 10; // 15 * 1.875 = 28.125 degrees
 
 //defining the callbacks here
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
-
+	
 	PMSM_Sensors = PMSM_HallSensorsGetPosition();//get rotor postion
 	BLDC_MotorCommutation(PMSM_Sensors);//commutate stator
-
-	if(PMSM_ModeEnabled == 1){//if true: meaning timer has initialized before coming to this point
-		if(PMSM_SinTableIndex <= 32) PMSM_SinTableIndex = 33;
-		if(PMSM_SinTableIndex > 33 && PMSM_SinTableIndex <= 64) PMSM_SinTableIndex = 0;
-	}
 	
 	//calculate the current speed of rotor by getting the counter value of TIM3/TIM14
 	PMSM_Speed_prev = PMSM_Speed;//set prev speed
@@ -544,7 +541,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
 		TIM16->CR1|=TIM_CR1_CEN;//enable
 		if (PMSM_ModeEnabled == 0) PMSM_ModeEnabled = 1;
 	}
-	//HAL_GPIO_TogglePin(ledY_GPIO_Port,ledY_Pin);//yellow
+	PMSM_SinTableIndex = PMSM_GetState(PMSM_Sensors);
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
@@ -554,14 +551,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			// Overflow - the motor is stopped
 			if (PMSM_MotorSpeedIsOK()) PMSM_MotorStop();
 		}
-		
 		//routine for TIM16//equivalent of TIM4
 		if(htim->Instance == TIM16){
 			PMSM_SetPWMWidthToYGB(PMSM_SinTableIndex);
-			
 			// Increment position in sine table
-			if(PMSM_SinTableIndex !=32 && PMSM_SinTableIndex !=64) PMSM_SinTableIndex++;
-			else __HAL_TIM_DISABLE(&htim16);
+			PMSM_SinTableIndex++;
 		}
 }
 
@@ -645,24 +639,12 @@ uint16_t PMSM_ADCToPWM(uint16_t ADC_VALUE) {
 }
 
 // Get index in sine table based on the sensor data, the timing and the direction of rotor rotation
-uint8_t	PMSM_GetState(uint8_t SensorsPosition) {
-	int16_t index;
-
-	if (PMSM_MotorSpin == PMSM_CW) {
-		index = PMSM_STATE_TABLE_INDEX_FORWARD[SensorsPosition];
-	}else {
-		index = PMSM_STATE_TABLE_INDEX_BACKWARD[SensorsPosition];
+uint8_t	PMSM_GetState(uint8_t index) {
+	index += 10;
+	if(index > PMSM_SINTABLESIZE-1){
+		//index = index-PMSM_SINTABLESIZE;
+		index=0;
 	}
-
-	//index = index + (int16_t)PMSM_Timing;
-	if (index > PMSM_SINTABLESIZE-1) {
-		index = index - PMSM_SINTABLESIZE;
-	}else {
-		if (index < 0) {
-			index = PMSM_SINTABLESIZE + index;
-		}
-	}
-
 	return index;
 }
 
@@ -732,24 +714,6 @@ void BLDC_MotorCommutation(uint16_t hallpos){
 	if (PMSM_STATE[VL] & !PMSM_STATE[VH]) { HAL_GPIO_WritePin(GL_GPIO_Port, GL_Pin, GPIO_PIN_RESET); }
 	if (PMSM_STATE[WH] & !PMSM_STATE[WL]) {	toUpdate = CH1; }
 	if (PMSM_STATE[WL] & !PMSM_STATE[WH]) {	HAL_GPIO_WritePin(BL_GPIO_Port, BL_Pin, GPIO_PIN_RESET); }
-}
-
-void PMSM_MotorManageLowerSwitchesForward(uint16_t hallpos){
-	if(PMSM_SinTableIndex >= 32 && PMSM_SinTableIndex <= 96){ 
-		HAL_GPIO_WritePin(YL_GPIO_Port,YL_Pin,GPIO_PIN_RESET);
-	}else{
-		HAL_GPIO_WritePin(YL_GPIO_Port,YL_Pin,GPIO_PIN_SET);
-	}
-	if(PMSM_SinTableIndex >= 31 && PMSM_SinTableIndex <= 165){
-		HAL_GPIO_WritePin(GL_GPIO_Port,GL_Pin,GPIO_PIN_SET);
-	}else{
-		HAL_GPIO_WritePin(GL_GPIO_Port,GL_Pin,GPIO_PIN_RESET);
-	}
-	if(PMSM_SinTableIndex >= 97 && PMSM_SinTableIndex <= 164){
-		HAL_GPIO_WritePin(BL_GPIO_Port,BL_Pin,GPIO_PIN_RESET);
-	}else{
-		HAL_GPIO_WritePin(BL_GPIO_Port,BL_Pin,GPIO_PIN_SET);
-	}
 }
 
 

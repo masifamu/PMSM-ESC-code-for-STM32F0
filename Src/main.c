@@ -116,8 +116,8 @@ int main(void)
     /* USER CODE BEGIN 3 */
 		
 		//sendToUART("HELLO\r\n");
-		snprintf(stringToUART,100,"ADCBuffer=%d\r\n",ADCBuffer[0]);
-		sendToUART(stringToUART);
+		//snprintf(stringToUART,100,"ADCBuffer=%d\r\n",ADCBuffer[0]);
+		//sendToUART(stringToUART);
 		
 		if (ADCBuffer[0] > PMSM_ADC_START) {
     		// If Motor Is not run

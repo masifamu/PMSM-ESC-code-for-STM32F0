@@ -50,7 +50,7 @@ uint16_t PMSM_getPWMFreq(uint16_t gfreq);
 void PMSM_updatePMSMPWMVariable(uint16_t PWM);
 uint16_t PMSM_ADCToPWM(uint16_t ADC_VALUE);
 uint8_t PMSM_HallSensorsGetPosition(void);
-uint8_t	PMSM_GetState(uint8_t SensorsPosition);
+uint8_t	PMSM_GetState(uint8_t index);
 void PMSM_MotorSetSpin(uint8_t spin); 
 uint8_t PMSM_MotorSpeedIsOK(void);
 void PMSM_MotorStop(void);
