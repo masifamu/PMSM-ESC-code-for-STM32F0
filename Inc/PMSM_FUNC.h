@@ -6,9 +6,11 @@
 #include "stdio.h"
 
 #define ENABLE_UART_DEBUG
-#define ENABLE_THROTTLE
+//#define ENABLE_THROTTLE
 
-#define PWM_PERIOD 					480 //8Mhz/(pwmfre*prescalar)
+#define PWM_PERIOD 					2884 //8Mhz/(pwmfre*prescalar)
+#define LOOKUP_ENTRIES			512
+#define M_PI								3.14159265358979323846
 
 #ifndef ENABLE_THROTTLE
 #define PMSM_ADC_START 			200
@@ -62,4 +64,9 @@ void BLDC_MotorCommutation(uint16_t hallpos);
 void BLDC_UpdatePWMWidth(uint8_t update);
 void BLDC_SetPWM(uint16_t pwm);
 void PMSM_MotorManageLowerSwitchesForward(uint16_t hallpos);
+
+uint16_t PMSM_setFreq(uint16_t _freq);
+void PMSM_generateLookUpTable(void);
+float map(float val, float I_Min, float I_Max, float O_Min, float O_Max);
+void PMSM_updatePhaseInc(void);
 #endif

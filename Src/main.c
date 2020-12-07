@@ -94,12 +94,11 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_TIM1_Init();
-  MX_USART1_UART_Init();
   MX_DMA_Init();
   MX_ADC_Init();
+  MX_TIM1_Init();
   MX_TIM14_Init();
-  MX_TIM16_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 	HAL_ADCEx_Calibration_Start(&hadc);
 	HAL_ADC_Start_DMA(&hadc,(uint32_t*)&ADCBuffer,6);
@@ -134,13 +133,15 @@ int main(void)
     			BLDC_MotorCommutation(PMSM_HallSensorsGetPosition());
     			PMSM_MotorSetRun();
     		}
-   			PMSM_updatePMSMPWMVariable(PMSM_ADCToPWM(ADCBuffer[0]));
+   			//PMSM_updatePMSMPWMVariable(PMSM_ADCToPWM(ADCBuffer[0]));
+				PMSM_setFreq(22/*(uint16_t)map(ADCBuffer[0],0,4096,5,300)*/);
+				//snprintf(stringToUART,100,"Sine wave freq=%d\r\n",(uint16_t)map(ADCBuffer[0],0,4096,5,300));
+				//sendToUART(stringToUART);
 				//setting green LED
-				HAL_GPIO_WritePin(ledG_GPIO_Port,ledG_Pin,GPIO_PIN_SET);
+				HAL_GPIO_WritePin(punchLedG_GPIO_Port,punchLedG_Pin,GPIO_PIN_SET);
     }else {
 				//resetting green LED
-				HAL_GPIO_WritePin(ledG_GPIO_Port,ledG_Pin,GPIO_PIN_RESET);
-    		PMSM_updatePMSMPWMVariable(0);
+				HAL_GPIO_WritePin(punchLedG_GPIO_Port,punchLedG_Pin,GPIO_PIN_RESET);
     }
   }
   /* USER CODE END 3 */
