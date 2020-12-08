@@ -36,20 +36,19 @@ static const uint8_t PMSM_BRIDGE_STATE_BACKWARD[8][6] =   // Motor steps
 
 uint8_t PMSM_STATE[6] = {0,0,0,0,0,0};
 
-volatile uint8_t PMSM_SinTableIndex = 0;
 volatile uint8_t	PMSM_Sensors = 0;
 volatile uint8_t PMSM_MotorSpin = PMSM_CW;
 volatile uint16_t PMSM_Speed = 0;
 volatile uint16_t PMSM_PWM = 0;
-volatile uint8_t PMSM_ModeEnabled = 0;
 volatile uint8_t PMSM_MotorRunFlag = 0;
-volatile uint16_t toUpdate=0;//for BLDC start
+volatile uint8_t PMSM_Mode = PMSM_MODE_DISABLED;
+volatile uint16_t toUpdate=0,toUpdatePrev=0;//for BLDC start
 char stringToUARTF[100] = "buffer here\r\n";//{'\0',};
 extern uint32_t globalTime;
 
 static uint16_t sinFreq;
-static uint32_t phaseInc,phase,lastPhase;
-static double phaseIncMult;
+volatile uint32_t phaseInc=0,phase=0;
+double phaseIncMult=0.0;
 static uint16_t lookUP[LOOKUP_ENTRIES];
 
 //defining the callbacks here
@@ -64,7 +63,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
 	TIM14->CNT = 0;//set
 	
 	PMSM_updatePhaseInc();
+	phase=getPhase(PMSM_Sensors);
 	
+	PMSM_Mode=PMSM_MODE_ENABLED;
 	//snprintf(stringToUARTF,100,"PhaseInc = %d PhaseIncMult=%lf\r\n",phaseInc>>23,phaseIncMult);
 	//snprintf(stringToUARTF,100,"PMSM_Speed = %d RPM\r\n",(uint16_t)((uint32_t)225564/PMSM_Speed));
 	//sendToUART(stringToUARTF);
@@ -76,15 +77,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			// Overflow - the motor is stopped
 			//take action here
 			toUpdate = 0;
+			toUpdatePrev=0;
+			//PMSM_MotorRunFlag = 0;
 		}
-		if(htim->Instance == TIM1){
+		//This routine should not be processed before HALL sensor routing.
+		if(htim->Instance == TIM1 && PMSM_Mode == PMSM_MODE_ENABLED){//runs every 60us
 			phase += phaseInc;
 			//depending upon the the active phase update PWM width
-			if(toUpdate == CH1) TIM1->CCR1=lookUP[phase>>23];
-			else if(toUpdate == CH2) TIM1->CCR2=lookUP[phase>>23];
-			else if(toUpdate == CH3) TIM1->CCR3=lookUP[phase>>23];
-			//if(phase>>31 != lastPhase>>31 && !(phase>>31)) toUpdate = 0;
-			lastPhase = phase;
+			if(toUpdate == CH1) TIM1->CCR1=lookUP[phase%512];
+			else if(toUpdate == CH2) TIM1->CCR2=lookUP[phase%512];
+			else if(toUpdate == CH3) TIM1->CCR3=lookUP[phase%512];
+			toUpdatePrev=toUpdate;
 		}
 }
 
@@ -94,7 +97,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 void PMSM_Init(void) {
 	PMSM_MotorStop();
 	PMSM_startPWMToYGB();
-	PMSM_setFreq(22);
 	PMSM_generateLookUpTable();
 }
 
@@ -121,6 +123,11 @@ uint16_t PMSM_getPWMFreq(uint16_t gfreq){
 void PMSM_startPWMToYGB(void){
 	//setting frequency of PWM signal to the Motor
 	PMSM_setPWMFreq(PMSM_getPWMFreq(PWM_PERIOD));
+	
+	//putting all the phases in starting condition.
+	TIM1->CCR1 = 0;
+	TIM1->CCR2 = 0;
+	TIM1->CCR3 = 0;
 	
 	//starting the PWM channels
 	HAL_TIM_PWM_Start(&htim1,TIM_CHANNEL_1);
@@ -184,7 +191,6 @@ void PMSM_MotorStop(void){
 
 	PMSM_Speed = 0;
 	PMSM_MotorRunFlag = 0;
-	PMSM_ModeEnabled = 0;
 }
 
 void BLDC_MotorCommutation(uint16_t hallpos){
@@ -225,22 +231,22 @@ uint16_t PMSM_setFreq(uint16_t _freq){
 void PMSM_generateLookUpTable(void){
 	double temp;
 	for(uint16_t i=0;i<LOOKUP_ENTRIES;i++){
-		temp = sin((i*M_PI)/LOOKUP_ENTRIES)*PWM_PERIOD;
+		temp = sin((i*M_PI)/LOOKUP_ENTRIES)*PWM_PERIOD*SPEEDING_FACTOR;
 		lookUP[i] = (uint16_t)(temp+0.5);
 		//snprintf(stringToUARTF,100,"lookUp[%d] = %d\r\n",i,lookUP[i]);
 		//sendToUART(stringToUARTF);
 	}
-	
-	//phaseIncMult = (double)PWM_PERIOD*8589.934592/48;
-	//phaseInc = (uint32_t)phaseIncMult*sinFreq;
-	
 }
-//sindivisions*decimalbits/1MHz
-//1024*2^23/1e6=8589.934592
-//512*2^23/1e6=4294.967296
+
 void PMSM_updatePhaseInc(void){
-	phaseIncMult = (double)PWM_PERIOD*4294.967296;
-	phaseInc = (uint32_t)phaseIncMult*sinFreq;
+	phaseIncMult = (double)PMSM_Speed/60;
+	phaseInc = (uint32_t)(((double)LOOKUP_ENTRIES/phaseIncMult))/2;
+}
+
+uint16_t getPhase(uint16_t sensorPos){
+	if(toUpdatePrev == 0) return 0;
+	if(toUpdatePrev == toUpdate) return (LOOKUP_ENTRIES/2);
+	if(toUpdatePrev != toUpdate) return 0;
 }
 
 // input values ??are: input value, a minimum value input, the maximum input, output minimum, maximum output
@@ -248,6 +254,11 @@ float map(float val, float I_Min, float I_Max, float O_Min, float O_Max){
 		return(((val-I_Min)*((O_Max-O_Min)/(I_Max-I_Min)))+O_Min);
 }
   
-
-
+void PMSM_SetPWMWidthToYGB(uint8_t val){
+	if(PMSM_Mode == PMSM_MODE_DISABLED){
+		if(toUpdate == CH1) TIM1->CCR1=val;
+		else if(toUpdate == CH2) TIM1->CCR2=val;
+		else if(toUpdate == CH3) TIM1->CCR3=val;
+	}
+}
 

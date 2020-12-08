@@ -131,17 +131,21 @@ int main(void)
     				PMSM_MotorSetSpin(PMSM_CCW);
     			}
     			BLDC_MotorCommutation(PMSM_HallSensorsGetPosition());
+					PMSM_SetPWMWidthToYGB(30);
     			PMSM_MotorSetRun();
     		}
+				__HAL_TIM_ENABLE_IT(&htim1,TIM_IT_UPDATE);//start timer 1 interrupt
    			//PMSM_updatePMSMPWMVariable(PMSM_ADCToPWM(ADCBuffer[0]));
-				PMSM_setFreq(22/*(uint16_t)map(ADCBuffer[0],0,4096,5,300)*/);
+				//PMSM_setFreq(22/*(uint16_t)map(ADCBuffer[0],0,4096,5,300)*/);
 				//snprintf(stringToUART,100,"Sine wave freq=%d\r\n",(uint16_t)map(ADCBuffer[0],0,4096,5,300));
 				//sendToUART(stringToUART);
 				//setting green LED
 				HAL_GPIO_WritePin(punchLedG_GPIO_Port,punchLedG_Pin,GPIO_PIN_SET);
     }else {
-				//resetting green LED
-				HAL_GPIO_WritePin(punchLedG_GPIO_Port,punchLedG_Pin,GPIO_PIN_RESET);
+			__HAL_TIM_DISABLE_IT(&htim1,TIM_IT_UPDATE);//stop timer 1 interrupt
+			PMSM_SetPWMWidthToYGB(0);
+			//resetting green LED
+			HAL_GPIO_WritePin(punchLedG_GPIO_Port,punchLedG_Pin,GPIO_PIN_RESET);
     }
   }
   /* USER CODE END 3 */

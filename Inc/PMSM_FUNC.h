@@ -24,8 +24,13 @@
 #define PMSM_ADC_MAX 				4000
 #endif
 
+#define SPEEDING_FACTOR			0.5
+
 #define PMSM_CW							0
 #define PMSM_CCW						1
+
+#define PMSM_MODE_ENABLED		1
+#define PMSM_MODE_DISABLED  2
 
 #define UH	0
 #define UL	1
@@ -45,7 +50,7 @@
 //uint8_t stringToUART[50] = {'\0',};
 //#endif
 void sendToUART(char *);
-void PMSM_SetPWMWidthToYGB(uint8_t stableIndex);
+void PMSM_SetPWMWidthToYGB(uint8_t val);
 void PMSM_startPWMToYGB(void);
 void PMSM_setPWMFreq(uint16_t sfreq);
 uint16_t PMSM_getPWMFreq(uint16_t gfreq);
@@ -69,4 +74,5 @@ uint16_t PMSM_setFreq(uint16_t _freq);
 void PMSM_generateLookUpTable(void);
 float map(float val, float I_Min, float I_Max, float O_Min, float O_Max);
 void PMSM_updatePhaseInc(void);
+uint16_t getPhase(uint16_t sensorPos);
 #endif
