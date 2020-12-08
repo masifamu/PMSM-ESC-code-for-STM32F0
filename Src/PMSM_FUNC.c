@@ -83,10 +83,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		//This routine should not be processed before HALL sensor routing.
 		if(htim->Instance == TIM1 && PMSM_Mode == PMSM_MODE_ENABLED){//runs every 60us
 			phase += phaseInc;
-			//depending upon the the active phase update PWM width
-			if(toUpdate == CH1) TIM1->CCR1=lookUP[phase%512];
-			else if(toUpdate == CH2) TIM1->CCR2=lookUP[phase%512];
-			else if(toUpdate == CH3) TIM1->CCR3=lookUP[phase%512];
+			//depending upon the the active phase update PWM width////////////////////////////start from here
+			if(toUpdate == CH1) TIM1->CCR1=lookUP[phase%512];//(uint16_t)((uint32_t)lookUP[phase%512]*PMSM_PWM/PWM_PERIOD);
+			else if(toUpdate == CH2) TIM1->CCR2=lookUP[phase%512];//(uint16_t)((uint32_t)lookUP[phase%512]*PMSM_PWM/PWM_PERIOD);
+			else if(toUpdate == CH3) TIM1->CCR3=lookUP[phase%512];//(uint16_t)((uint32_t)lookUP[phase%512]*PMSM_PWM/PWM_PERIOD);
 			toUpdatePrev=toUpdate;
 		}
 }
@@ -233,8 +233,8 @@ void PMSM_generateLookUpTable(void){
 	for(uint16_t i=0;i<LOOKUP_ENTRIES;i++){
 		temp = sin((i*M_PI)/LOOKUP_ENTRIES)*PWM_PERIOD*SPEEDING_FACTOR;
 		lookUP[i] = (uint16_t)(temp+0.5);
-		//snprintf(stringToUARTF,100,"lookUp[%d] = %d\r\n",i,lookUP[i]);
-		//sendToUART(stringToUARTF);
+		snprintf(stringToUARTF,100,"lookUp[%d] = %d\r\n",i,lookUP[i]);
+		sendToUART(stringToUARTF);
 	}
 }
 
@@ -260,5 +260,9 @@ void PMSM_SetPWMWidthToYGB(uint8_t val){
 		else if(toUpdate == CH2) TIM1->CCR2=val;
 		else if(toUpdate == CH3) TIM1->CCR3=val;
 	}
+}
+
+void PMSM_updatePMSMPWMVariable(uint16_t PWM){
+	PMSM_PWM=PWM;
 }
 

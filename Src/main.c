@@ -118,7 +118,7 @@ int main(void)
 		//snprintf(stringToUART,100,"ADCBuffer=%d\r\n",ADCBuffer[0]);
 		//sendToUART(stringToUART);
 		
-		if (ADCBuffer[0] > PMSM_ADC_START) {
+		if ((ADCBuffer[0] & 0xFFF8) > PMSM_ADC_START) {
     		// If Motor Is not run
     		if (PMSM_MotorIsRun() == 0) {
     			// Start motor
@@ -135,10 +135,9 @@ int main(void)
     			PMSM_MotorSetRun();
     		}
 				__HAL_TIM_ENABLE_IT(&htim1,TIM_IT_UPDATE);//start timer 1 interrupt
-   			//PMSM_updatePMSMPWMVariable(PMSM_ADCToPWM(ADCBuffer[0]));
-				//PMSM_setFreq(22/*(uint16_t)map(ADCBuffer[0],0,4096,5,300)*/);
-				//snprintf(stringToUART,100,"Sine wave freq=%d\r\n",(uint16_t)map(ADCBuffer[0],0,4096,5,300));
-				//sendToUART(stringToUART);
+   			PMSM_updatePMSMPWMVariable(PMSM_ADCToPWM(ADCBuffer[0] & 0xFFF8));
+				snprintf(stringToUART,100,"PMSM_PWM=%d\r\n",PMSM_ADCToPWM(ADCBuffer[0] & 0xFFF8));
+				sendToUART(stringToUART);
 				//setting green LED
 				HAL_GPIO_WritePin(punchLedG_GPIO_Port,punchLedG_Pin,GPIO_PIN_SET);
     }else {
