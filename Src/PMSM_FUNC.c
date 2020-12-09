@@ -46,10 +46,10 @@ volatile uint16_t toUpdate=0,toUpdatePrev=0;//for BLDC start
 char stringToUARTF[100] = "buffer here\r\n";//{'\0',};
 extern uint32_t globalTime;
 
-static uint16_t sinFreq;
 volatile uint32_t phaseInc=0,phase=0;
-double phaseIncMult=0.0;
+//double phaseIncMult=0.0;
 static uint16_t lookUP[LOOKUP_ENTRIES];
+volatile uint16_t throttledPWMWidth=0;
 
 //defining the callbacks here
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
@@ -62,7 +62,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
 	TIM14->CR1|=TIM_CR1_CEN;//enable
 	TIM14->CNT = 0;//set
 	
-	PMSM_updatePhaseInc();
+	//PMSM_updatePhaseInc();
+	phaseInc = LOOKUP_ENTRIES*30/PMSM_Speed;
 	phase=getPhase(PMSM_Sensors);
 	
 	PMSM_Mode=PMSM_MODE_ENABLED;
@@ -83,10 +84,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		//This routine should not be processed before HALL sensor routing.
 		if(htim->Instance == TIM1 && PMSM_Mode == PMSM_MODE_ENABLED){//runs every 60us
 			phase += phaseInc;
-			//depending upon the the active phase update PWM width////////////////////////////start from here
-			if(toUpdate == CH1) TIM1->CCR1=lookUP[phase%512];//(uint16_t)((uint32_t)lookUP[phase%512]*PMSM_PWM/PWM_PERIOD);
-			else if(toUpdate == CH2) TIM1->CCR2=lookUP[phase%512];//(uint16_t)((uint32_t)lookUP[phase%512]*PMSM_PWM/PWM_PERIOD);
-			else if(toUpdate == CH3) TIM1->CCR3=lookUP[phase%512];//(uint16_t)((uint32_t)lookUP[phase%512]*PMSM_PWM/PWM_PERIOD);
+			throttledPWMWidth=(uint16_t)((uint32_t)lookUP[phase%512]*PMSM_PWM/PWM_PERIOD);
+			//depending upon the the active phase update PWM width
+			if(toUpdate == CH1) TIM1->CCR1=throttledPWMWidth;
+			else if(toUpdate == CH2) TIM1->CCR2=throttledPWMWidth;
+			else if(toUpdate == CH3) TIM1->CCR3=throttledPWMWidth;
 			toUpdatePrev=toUpdate;
 		}
 }
@@ -219,34 +221,26 @@ void BLDC_MotorCommutation(uint16_t hallpos){
 	if (PMSM_STATE[WL] & !PMSM_STATE[WH]) {	HAL_GPIO_WritePin(punchBL_GPIO_Port, punchBL_Pin, GPIO_PIN_RESET); }
 }
 
-uint16_t PMSM_setFreq(uint16_t _freq){
-	if(_freq > 1000){
-		return 0;
-	}else{
-		sinFreq=_freq;
-		phaseInc = (uint32_t) phaseIncMult*_freq;
-		return 1;
-	}
-}
 void PMSM_generateLookUpTable(void){
 	double temp;
 	for(uint16_t i=0;i<LOOKUP_ENTRIES;i++){
 		temp = sin((i*M_PI)/LOOKUP_ENTRIES)*PWM_PERIOD*SPEEDING_FACTOR;
 		lookUP[i] = (uint16_t)(temp+0.5);
-		snprintf(stringToUARTF,100,"lookUp[%d] = %d\r\n",i,lookUP[i]);
-		sendToUART(stringToUARTF);
+		//snprintf(stringToUARTF,100,"lookUp[%d] = %d\r\n",i,lookUP[i]);
+		//sendToUART(stringToUARTF);
 	}
 }
 
 void PMSM_updatePhaseInc(void){
-	phaseIncMult = (double)PMSM_Speed/60;
-	phaseInc = (uint32_t)(((double)LOOKUP_ENTRIES/phaseIncMult))/2;
+	//phaseIncMult = (double)PMSM_Speed/60;
+	//phaseInc = (uint32_t)(((double)LOOKUP_ENTRIES/phaseIncMult))/2;//2 is used here, because we are using only half sinewave
+	//phaseInc = LOOKUP_ENTRIES*30/PMSM_Speed;
 }
 
 uint16_t getPhase(uint16_t sensorPos){
 	if(toUpdatePrev == 0) return 0;
 	if(toUpdatePrev == toUpdate) return (LOOKUP_ENTRIES/2);
-	if(toUpdatePrev != toUpdate) return 0;
+	return 0;
 }
 
 // input values ??are: input value, a minimum value input, the maximum input, output minimum, maximum output
