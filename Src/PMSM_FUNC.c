@@ -46,30 +46,31 @@ volatile uint16_t toUpdate=0,toUpdatePrev=0;//for BLDC start
 char stringToUARTF[100] = "buffer here\r\n";//{'\0',};
 extern uint32_t globalTime;
 
-volatile uint32_t phaseInc=0,phase=0;
+volatile uint32_t phaseInc=0,phase=0,counter=0;
 //double phaseIncMult=0.0;
 static uint16_t lookUP[LOOKUP_ENTRIES];
 volatile uint16_t throttledPWMWidth=0;
 
 //defining the callbacks here
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
+	counter++;
+	PMSM_Sensors = (uint8_t)((GPIOB->IDR) & (HS_PINS))>>5;//get rotor postion
 	
-	PMSM_Sensors = PMSM_HallSensorsGetPosition();//get rotor postion
-	BLDC_MotorCommutation(PMSM_Sensors);//commutate stator
-	
-	//calculate the current speed of rotor by getting the counter value of TIM14
-	PMSM_Speed = TIM14->CNT;//get speed
-	TIM14->CR1|=TIM_CR1_CEN;//enable
-	TIM14->CNT = 0;//set
-	
-	//PMSM_updatePhaseInc();
-	phaseInc = LOOKUP_ENTRIES*30/PMSM_Speed;
-	phase=getPhase(PMSM_Sensors);
-	
-	PMSM_Mode=PMSM_MODE_ENABLED;
-	//snprintf(stringToUARTF,100,"PhaseInc = %d PhaseIncMult=%lf\r\n",phaseInc>>23,phaseIncMult);
-	//snprintf(stringToUARTF,100,"PMSM_Speed = %d RPM\r\n",(uint16_t)((uint32_t)225564/PMSM_Speed));
-	//sendToUART(stringToUARTF);
+	if(PMSM_Sensors >0 && PMSM_Sensors < 7){
+		
+		BLDC_MotorCommutation(PMSM_Sensors);//commutate stator
+		
+		//calculate the current speed of rotor by getting the counter value of TIM14
+		PMSM_Speed = TIM14->CNT;//get speed
+		TIM14->CR1|=TIM_CR1_CEN;//enable
+		TIM14->CNT = 0;//set
+		
+		phaseInc = LOOKUP_ENTRIES*30/PMSM_Speed;
+		
+		phase=getPhase(PMSM_Sensors);
+		
+		PMSM_Mode=PMSM_MODE_ENABLED;
+	}
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
@@ -85,6 +86,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		if(htim->Instance == TIM1 && PMSM_Mode == PMSM_MODE_ENABLED){//runs every 60us
 			phase += phaseInc;
 			throttledPWMWidth=(uint16_t)((uint32_t)lookUP[phase%512]*PMSM_PWM/PWM_PERIOD);
+			//throttledPWMWidth=(uint16_t)((uint32_t)lookUP[phase & 0x000001FF]*PMSM_PWM/PWM_PERIOD);
 			//depending upon the the active phase update PWM width
 			if(toUpdate == CH1) TIM1->CCR1=throttledPWMWidth;
 			else if(toUpdate == CH2) TIM1->CCR2=throttledPWMWidth;
@@ -103,8 +105,8 @@ void PMSM_Init(void) {
 }
 
 uint8_t PMSM_HallSensorsGetPosition(void) {
-	uint8_t temp=(uint8_t)((GPIOB->IDR) & (GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7))>>5;
-	return temp;
+	//uint8_t temp=(uint8_t)((GPIOB->IDR) & (GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7))>>5;
+	return (uint8_t)((GPIOB->IDR) & (HS_PINS))>>5;
 }
 
 #ifdef ENABLE_UART_DEBUG
@@ -206,19 +208,19 @@ void BLDC_MotorCommutation(uint16_t hallpos){
 
 	// Disable if need
 	if (!PMSM_STATE[UH]) TIM1->CCR3=0;
-	if (!PMSM_STATE[UL]) HAL_GPIO_WritePin(punchYL_GPIO_Port, punchYL_Pin, GPIO_PIN_SET);
+	if (!PMSM_STATE[UL]) GPIOB->BSRR = 0x0002;//Y
 	if (!PMSM_STATE[VH]) TIM1->CCR2=0;
-	if (!PMSM_STATE[VL]) HAL_GPIO_WritePin(punchGL_GPIO_Port, punchGL_Pin, GPIO_PIN_SET);
+	if (!PMSM_STATE[VL]) GPIOB->BSRR = 0x0001;//G
 	if (!PMSM_STATE[WH]) TIM1->CCR1=0;
-	if (!PMSM_STATE[WL]) HAL_GPIO_WritePin(punchBL_GPIO_Port, punchBL_Pin, GPIO_PIN_SET);
+	if (!PMSM_STATE[WL]) GPIOA->BSRR = 0x0080;//B
 
 	// Enable if need. If previous state is Enabled then not enable again. Else output do flip-flop.
 	if (PMSM_STATE[UH] & !PMSM_STATE[UL]) { toUpdate = CH3; }
-	if (PMSM_STATE[UL] & !PMSM_STATE[UH]) { HAL_GPIO_WritePin(punchYL_GPIO_Port, punchYL_Pin, GPIO_PIN_RESET); }
+	if (PMSM_STATE[UL] & !PMSM_STATE[UH]) GPIOB->BRR = 0x0002;//Y
 	if (PMSM_STATE[VH] & !PMSM_STATE[VL]) {	toUpdate = CH2; }
-	if (PMSM_STATE[VL] & !PMSM_STATE[VH]) { HAL_GPIO_WritePin(punchGL_GPIO_Port, punchGL_Pin, GPIO_PIN_RESET); }
+	if (PMSM_STATE[VL] & !PMSM_STATE[VH]) GPIOB->BRR = 0x0001;//G
 	if (PMSM_STATE[WH] & !PMSM_STATE[WL]) {	toUpdate = CH1; }
-	if (PMSM_STATE[WL] & !PMSM_STATE[WH]) {	HAL_GPIO_WritePin(punchBL_GPIO_Port, punchBL_Pin, GPIO_PIN_RESET); }
+	if (PMSM_STATE[WL] & !PMSM_STATE[WH]) GPIOA->BRR = 0x0080;//B
 }
 
 void PMSM_generateLookUpTable(void){
@@ -231,11 +233,11 @@ void PMSM_generateLookUpTable(void){
 	}
 }
 
-void PMSM_updatePhaseInc(void){
-	//phaseIncMult = (double)PMSM_Speed/60;
-	//phaseInc = (uint32_t)(((double)LOOKUP_ENTRIES/phaseIncMult))/2;//2 is used here, because we are using only half sinewave
-	//phaseInc = LOOKUP_ENTRIES*30/PMSM_Speed;
-}
+//void PMSM_updatePhaseInc(void){
+//	//phaseIncMult = (double)PMSM_Speed/60;
+//	//phaseInc = (uint32_t)(((double)LOOKUP_ENTRIES/phaseIncMult))/2;//2 is used here, because we are using only half sinewave
+//	//phaseInc = LOOKUP_ENTRIES*30/PMSM_Speed;
+//}
 
 uint16_t getPhase(uint16_t sensorPos){
 	if(toUpdatePrev == 0) return 0;

@@ -8,7 +8,9 @@
 #define ENABLE_UART_DEBUG
 //#define ENABLE_THROTTLE
 
-#define PWM_PERIOD 					2884 //8Mhz/(pwmfre*prescalar)
+#define HS_PINS 						GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7
+
+#define PWM_PERIOD 					2884 //48Mhz/(pwmfre*prescalar)
 #define LOOKUP_ENTRIES			512
 #define M_PI								3.14159265358979323846
 

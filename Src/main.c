@@ -52,6 +52,8 @@
 char stringToUART[100] = "buffer here\r\n";//{'\0',};
 #endif
 uint16_t ADCBuffer[6]={0,};
+extern uint32_t globalTime;
+extern uint32_t counter;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -136,7 +138,8 @@ int main(void)
     		}
 				__HAL_TIM_ENABLE_IT(&htim1,TIM_IT_UPDATE);//start timer 1 interrupt
    			PMSM_updatePMSMPWMVariable(PMSM_ADCToPWM(ADCBuffer[0] & 0xFFF8));
-				snprintf(stringToUART,100,"PMSM_PWM=%d\r\n",PMSM_ADCToPWM(ADCBuffer[0] & 0xFFF8));
+				//snprintf(stringToUART,100,"PMSM_PWM=%d\r\n",PMSM_ADCToPWM(ADCBuffer[0] & 0xFFF8));
+				snprintf(stringToUART,100,"GT=%d CNT=%d\r\n",globalTime,counter);
 				sendToUART(stringToUART);
 				//setting green LED
 				HAL_GPIO_WritePin(punchLedG_GPIO_Port,punchLedG_Pin,GPIO_PIN_SET);
