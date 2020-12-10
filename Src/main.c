@@ -139,8 +139,8 @@ int main(void)
 				__HAL_TIM_ENABLE_IT(&htim1,TIM_IT_UPDATE);//start timer 1 interrupt
    			PMSM_updatePMSMPWMVariable(PMSM_ADCToPWM(ADCBuffer[0] & 0xFFF8));
 				//snprintf(stringToUART,100,"PMSM_PWM=%d\r\n",PMSM_ADCToPWM(ADCBuffer[0] & 0xFFF8));
-				snprintf(stringToUART,100,"GT=%d CNT=%d\r\n",globalTime,counter);
-				sendToUART(stringToUART);
+				//snprintf(stringToUART,100,"GT=%d CNT=%d\r\n",globalTime,counter);
+				//sendToUART(stringToUART);
 				//setting green LED
 				HAL_GPIO_WritePin(punchLedG_GPIO_Port,punchLedG_Pin,GPIO_PIN_SET);
     }else {

@@ -53,24 +53,24 @@ volatile uint16_t throttledPWMWidth=0;
 
 //defining the callbacks here
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
-	counter++;
+	
 	PMSM_Sensors = (uint8_t)((GPIOB->IDR) & (HS_PINS))>>5;//get rotor postion
 	
-	if(PMSM_Sensors >0 && PMSM_Sensors < 7){
-		
-		BLDC_MotorCommutation(PMSM_Sensors);//commutate stator
-		
-		//calculate the current speed of rotor by getting the counter value of TIM14
-		PMSM_Speed = TIM14->CNT;//get speed
-		TIM14->CR1|=TIM_CR1_CEN;//enable
-		TIM14->CNT = 0;//set
-		
-		phaseInc = LOOKUP_ENTRIES*30/PMSM_Speed;
-		
-		phase=getPhase(PMSM_Sensors);
-		
-		PMSM_Mode=PMSM_MODE_ENABLED;
+	BLDC_MotorCommutation(PMSM_Sensors);//commutate stator
+	
+	//calculate the current speed of rotor by getting the counter value of TIM14
+	PMSM_Speed = TIM14->CNT;//get speed
+	TIM14->CR1|=TIM_CR1_CEN;//enable
+	TIM14->CNT = 0;//set
+	if(PMSM_Speed > 100 & PMSM_Speed < 15360U){//check here
+		phaseInc = (uint32_t)LOOKUP_ENTRIES*30/PMSM_Speed;
 	}
+	if((PMSM_Sensors >0) & (PMSM_Sensors < 7)){
+		phase=getPhase(PMSM_Sensors);
+	}else{
+		counter++;
+	}
+	PMSM_Mode=PMSM_MODE_ENABLED;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
@@ -78,15 +78,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
     if(htim->Instance == TIM14){
 			// Overflow - the motor is stopped
 			//take action here
-			toUpdate = 0;
-			toUpdatePrev=0;
+			//toUpdate = 0;
+			//toUpdatePrev=0;
 			//PMSM_MotorRunFlag = 0;
 		}
 		//This routine should not be processed before HALL sensor routing.
-		if(htim->Instance == TIM1 && PMSM_Mode == PMSM_MODE_ENABLED){//runs every 60us
+		if(htim->Instance == TIM1 & PMSM_Mode == PMSM_MODE_ENABLED){//runs every 60us
 			phase += phaseInc;
-			throttledPWMWidth=(uint16_t)((uint32_t)lookUP[phase%512]*PMSM_PWM/PWM_PERIOD);
-			//throttledPWMWidth=(uint16_t)((uint32_t)lookUP[phase & 0x000001FF]*PMSM_PWM/PWM_PERIOD);
+			//throttledPWMWidth=(uint16_t)((uint32_t)lookUP[phase%512]*PMSM_PWM/PWM_PERIOD);
+			throttledPWMWidth=(uint16_t)((uint32_t)lookUP[(phase & 0x000001FF)]*PMSM_PWM/PWM_PERIOD);
 			//depending upon the the active phase update PWM width
 			if(toUpdate == CH1) TIM1->CCR1=throttledPWMWidth;
 			else if(toUpdate == CH2) TIM1->CCR2=throttledPWMWidth;
