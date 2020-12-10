@@ -26,7 +26,7 @@
 #define PMSM_ADC_MAX 				4000
 #endif
 
-#define SPEEDING_FACTOR			0.5
+#define SPEEDING_FACTOR			0.8
 
 #define PMSM_CW							0
 #define PMSM_CCW						1
@@ -59,22 +59,16 @@ uint16_t PMSM_getPWMFreq(uint16_t gfreq);
 void PMSM_updatePMSMPWMVariable(uint16_t PWM);
 uint16_t PMSM_ADCToPWM(uint16_t ADC_VALUE);
 uint8_t PMSM_HallSensorsGetPosition(void);
-uint8_t	PMSM_GetState(uint8_t index);
 void PMSM_MotorSetSpin(uint8_t spin); 
-uint8_t PMSM_MotorSpeedIsOK(void);
+
 void PMSM_MotorStop(void);
 void PMSM_MotorSetRun(void);
 uint16_t PMSM_GetSpeed(void);
 uint8_t PMSM_MotorIsRun(void);
 void PMSM_Init(void);
 void BLDC_MotorCommutation(uint16_t hallpos);
-void BLDC_UpdatePWMWidth(uint8_t update);
-void BLDC_SetPWM(uint16_t pwm);
-void PMSM_MotorManageLowerSwitchesForward(uint16_t hallpos);
 
 uint16_t PMSM_setFreq(uint16_t _freq);
 void PMSM_generateLookUpTable(void);
-float map(float val, float I_Min, float I_Max, float O_Min, float O_Max);
-void PMSM_updatePhaseInc(void);
 uint16_t getPhase(uint16_t sensorPos);
 #endif

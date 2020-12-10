@@ -53,7 +53,6 @@ char stringToUART[100] = "buffer here\r\n";//{'\0',};
 #endif
 uint16_t ADCBuffer[6]={0,};
 extern uint32_t globalTime;
-extern uint32_t counter;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -120,34 +119,34 @@ int main(void)
 		//snprintf(stringToUART,100,"ADCBuffer=%d\r\n",ADCBuffer[0]);
 		//sendToUART(stringToUART);
 		
-		if ((ADCBuffer[0] & 0xFFF8) > PMSM_ADC_START) {
+		if ((ADCBuffer[0] & 0xFFF0) > PMSM_ADC_START) {
     		// If Motor Is not run
-    		if (PMSM_MotorIsRun() == 0) {
-    			// Start motor
-    			// Check Reverse pin
-    			if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15) != 0) {
-    				// Forward
-    				PMSM_MotorSetSpin(PMSM_CW);
-    			} else {
-    				// Backward
-    				PMSM_MotorSetSpin(PMSM_CCW);
-    			}
-    			BLDC_MotorCommutation(PMSM_HallSensorsGetPosition());
-					PMSM_SetPWMWidthToYGB(30);
-    			PMSM_MotorSetRun();
-    		}
-				__HAL_TIM_ENABLE_IT(&htim1,TIM_IT_UPDATE);//start timer 1 interrupt
-   			PMSM_updatePMSMPWMVariable(PMSM_ADCToPWM(ADCBuffer[0] & 0xFFF8));
-				//snprintf(stringToUART,100,"PMSM_PWM=%d\r\n",PMSM_ADCToPWM(ADCBuffer[0] & 0xFFF8));
-				//snprintf(stringToUART,100,"GT=%d CNT=%d\r\n",globalTime,counter);
-				//sendToUART(stringToUART);
-				//setting green LED
-				HAL_GPIO_WritePin(punchLedG_GPIO_Port,punchLedG_Pin,GPIO_PIN_SET);
+			if (PMSM_MotorIsRun() == 0) {
+				// Start motor
+				// Check Reverse pin
+				if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15) != 0) {
+					// Forward
+					PMSM_MotorSetSpin(PMSM_CW);
+				} else {
+					// Backward
+					PMSM_MotorSetSpin(PMSM_CCW);
+				}
+				BLDC_MotorCommutation(PMSM_HallSensorsGetPosition());
+				PMSM_MotorSetRun();
+			}
+				
+			PMSM_updatePMSMPWMVariable(PMSM_ADCToPWM(ADCBuffer[0] & 0xFFF0));
+			__HAL_TIM_ENABLE_IT(&htim1,TIM_IT_UPDATE);//start timer 1 interrupt
+			
+			//snprintf(stringToUART,100,"PMSM_PWM=%d\r\n",PMSM_ADCToPWM(ADCBuffer[0] & 0xFFF8));
+			//snprintf(stringToUART,100,"GT=%d CNT=%d\r\n",globalTime,counter);
+			//sendToUART(stringToUART);
+			
+			GPIOB->BSRR = 0x0010;//set green LED
     }else {
 			__HAL_TIM_DISABLE_IT(&htim1,TIM_IT_UPDATE);//stop timer 1 interrupt
 			PMSM_SetPWMWidthToYGB(0);
-			//resetting green LED
-			HAL_GPIO_WritePin(punchLedG_GPIO_Port,punchLedG_Pin,GPIO_PIN_RESET);
+			GPIOB->BRR = 0x0010;//reset green LED
     }
   }
   /* USER CODE END 3 */

@@ -41,12 +41,11 @@ volatile uint8_t PMSM_MotorSpin = PMSM_CW;
 volatile uint16_t PMSM_Speed = 0;
 volatile uint16_t PMSM_PWM = 0;
 volatile uint8_t PMSM_MotorRunFlag = 0;
-volatile uint8_t PMSM_Mode = PMSM_MODE_DISABLED;
 volatile uint16_t toUpdate=0,toUpdatePrev=0;//for BLDC start
 char stringToUARTF[100] = "buffer here\r\n";//{'\0',};
 extern uint32_t globalTime;
 
-volatile uint32_t phaseInc=0,phase=0,counter=0;
+volatile uint32_t phaseInc=1U,phase=0;
 //double phaseIncMult=0.0;
 static uint16_t lookUP[LOOKUP_ENTRIES];
 volatile uint16_t throttledPWMWidth=0;
@@ -62,30 +61,29 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
 	PMSM_Speed = TIM14->CNT;//get speed
 	TIM14->CR1|=TIM_CR1_CEN;//enable
 	TIM14->CNT = 0;//set
+	
 	if(PMSM_Speed > 100 & PMSM_Speed < 15360U){//check here
 		phaseInc = (uint32_t)LOOKUP_ENTRIES*30/PMSM_Speed;
 	}
-	if((PMSM_Sensors >0) & (PMSM_Sensors < 7)){
+	
+	if((PMSM_Sensors > 0) & (PMSM_Sensors < 7)){
 		phase=getPhase(PMSM_Sensors);
-	}else{
-		counter++;
 	}
-	PMSM_Mode=PMSM_MODE_ENABLED;
+	//(GPIOA->ODR & 0x00001000U) ? (GPIOA->BRR = 0x00001000U):(GPIOA->BSRR = 0x00001000U);//don't use here
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-		//routine for TIM14 to calculate the speed//equivalent of TIM3
+	
+		//at every TIM14 overflow this routine executes.
     if(htim->Instance == TIM14){
-			// Overflow - the motor is stopped
-			//take action here
-			//toUpdate = 0;
-			//toUpdatePrev=0;
-			//PMSM_MotorRunFlag = 0;
+			phase=0;
+			toUpdate = 0;
+			toUpdatePrev=0;
+			PMSM_MotorRunFlag = 0;
 		}
-		//This routine should not be processed before HALL sensor routing.
-		if(htim->Instance == TIM1 & PMSM_Mode == PMSM_MODE_ENABLED){//runs every 60us
+		
+		if(htim->Instance == TIM1){//runs every 60us
 			phase += phaseInc;
-			//throttledPWMWidth=(uint16_t)((uint32_t)lookUP[phase%512]*PMSM_PWM/PWM_PERIOD);
 			throttledPWMWidth=(uint16_t)((uint32_t)lookUP[(phase & 0x000001FF)]*PMSM_PWM/PWM_PERIOD);
 			//depending upon the the active phase update PWM width
 			if(toUpdate == CH1) TIM1->CCR1=throttledPWMWidth;
@@ -105,7 +103,6 @@ void PMSM_Init(void) {
 }
 
 uint8_t PMSM_HallSensorsGetPosition(void) {
-	//uint8_t temp=(uint8_t)((GPIOB->IDR) & (GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7))>>5;
 	return (uint8_t)((GPIOB->IDR) & (HS_PINS))>>5;
 }
 
@@ -156,17 +153,8 @@ uint16_t PMSM_ADCToPWM(uint16_t ADC_VALUE) {
 	}
 }
 
-// Get index in sine table based on the sensor data, the timing and the direction of rotor rotation
-uint8_t	PMSM_GetState(uint8_t index) {
-	return 0;
-}
-
 void PMSM_MotorSetSpin(uint8_t spin) {
 	PMSM_MotorSpin = spin;
-}
-
-uint8_t PMSM_MotorSpeedIsOK(void) {
-	return 0;
 }
 
 uint8_t PMSM_MotorIsRun(void) {
@@ -183,14 +171,14 @@ void PMSM_MotorSetRun(void) {
 
 // Stop a motor
 void PMSM_MotorStop(void){
-	//PMSM_SetPWMWidthToYGB(0);
+
 	//upper switches
 	//turn them off
 	
 	//lower swithes
 	//lower switches are already off right after the power in ON
 	
-	//stopping the timers
+	//stopping the timer
 	__HAL_TIM_DISABLE(&htim14);
 
 	PMSM_Speed = 0;
@@ -244,21 +232,15 @@ uint16_t getPhase(uint16_t sensorPos){
 	if(toUpdatePrev == toUpdate) return (LOOKUP_ENTRIES/2);
 	return 0;
 }
-
-// input values ??are: input value, a minimum value input, the maximum input, output minimum, maximum output
-float map(float val, float I_Min, float I_Max, float O_Min, float O_Max){
-		return(((val-I_Min)*((O_Max-O_Min)/(I_Max-I_Min)))+O_Min);
-}
   
 void PMSM_SetPWMWidthToYGB(uint8_t val){
-	if(PMSM_Mode == PMSM_MODE_DISABLED){
 		if(toUpdate == CH1) TIM1->CCR1=val;
 		else if(toUpdate == CH2) TIM1->CCR2=val;
 		else if(toUpdate == CH3) TIM1->CCR3=val;
-	}
 }
 
 void PMSM_updatePMSMPWMVariable(uint16_t PWM){
 	PMSM_PWM=PWM;
 }
+
 
