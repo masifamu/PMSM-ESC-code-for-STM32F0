@@ -6,7 +6,7 @@
 #include "stdio.h"
 
 #define ENABLE_UART_DEBUG
-//#define ENABLE_THROTTLE
+#define ENABLE_THROTTLE
 
 #define HS_PINS 						GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7
 

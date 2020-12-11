@@ -138,9 +138,9 @@ int main(void)
 			PMSM_updatePMSMPWMVariable(PMSM_ADCToPWM(ADCBuffer[0] & 0xFFF0));
 			__HAL_TIM_ENABLE_IT(&htim1,TIM_IT_UPDATE);//start timer 1 interrupt
 			
-			//snprintf(stringToUART,100,"PMSM_PWM=%d\r\n",PMSM_ADCToPWM(ADCBuffer[0] & 0xFFF8));
+			snprintf(stringToUART,100,"PMSM_PWM=%d\r\n",PMSM_ADCToPWM(ADCBuffer[0] & 0xFFF8));
 			//snprintf(stringToUART,100,"GT=%d CNT=%d\r\n",globalTime,counter);
-			//sendToUART(stringToUART);
+			sendToUART(stringToUART);
 			
 			GPIOB->BSRR = 0x0010;//set green LED
     }else {

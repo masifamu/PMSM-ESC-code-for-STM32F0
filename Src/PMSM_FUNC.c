@@ -46,7 +46,6 @@ char stringToUARTF[100] = "buffer here\r\n";//{'\0',};
 extern uint32_t globalTime;
 
 volatile uint32_t phaseInc=1U,phase=0;
-//double phaseIncMult=0.0;
 static uint16_t lookUP[LOOKUP_ENTRIES];
 volatile uint16_t throttledPWMWidth=0;
 
