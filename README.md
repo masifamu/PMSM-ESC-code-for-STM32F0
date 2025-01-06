@@ -18,7 +18,7 @@ This repository contains Electronic Speed Controller (ESC) firmware $ Hardware f
 ### Installation
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/pmsm-esc-stm32f0.git
+   git clone https://github.com/masifamu/PMSM-ESC-code-for-STM32F0.git
    cd pmsm-esc-stm32f0
 
 ### Getting Started
