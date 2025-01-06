@@ -3,7 +3,7 @@
 This repository contains firmware for a Permanent Magnet Synchronous Motor (PMSM) Electronic Speed Controller (ESC) built for STM32F0 microcontrollers. It uses Field-Oriented Control (FOC) for efficient and precise motor operation.
 
 ## Features
-- **Field-Oriented Control (FOC)** for smooth and efficient motor control.
+- **Trapezoidal Control method** for motor control.
 - Optimized for **STM32F0** microcontrollers.
 - Customizable parameters for various motors.
 - Real-time diagnostics via UART.
