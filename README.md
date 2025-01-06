@@ -1,6 +1,6 @@
 # PMSM ESC Firmware for STM32F0
 
-This repository contains firmware for a Permanent Magnet Synchronous Motor (PMSM) Electronic Speed Controller (ESC) built for STM32F0 microcontrollers. It uses Field-Oriented Control (FOC) for efficient and precise motor operation.
+This repository contains Electronic Speed Controller (ESC) firmware $ Hardware for Permanent Magnet Synchronous Motor (PMSM). This ESC is built with STM32F0 microcontroller and currently supports trapezoidal control method to control to the motor.
 
 ## Features
 - **Trapezoidal Control method** for motor control.
