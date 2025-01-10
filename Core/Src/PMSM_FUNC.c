@@ -1,4 +1,5 @@
 #include "PMSM_FUNC.h"
+#include "board_config_V1.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -6,6 +7,8 @@
 
 
 //defining variables
+
+static Controller controller_t;
 // BLDC motor steps tables
 static const uint8_t PMSM_BRIDGE_STATE_FORWARD[8][6] =   // Motor steps
 {
@@ -36,11 +39,34 @@ static const uint8_t PMSM_BRIDGE_STATE_BACKWARD[8][6] =   // Motor steps
 
 uint8_t PMSM_STATE[6] = {0,0,0,0,0,0};
 
-volatile uint8_t	PMSM_Sensors = 0;
-volatile uint8_t PMSM_MotorSpin = PMSM_CW;
+// Use const for constant values
+const float SPEEDING_FACTOR = 0.8;
+
+const uint16_t PWM_PERIOD = 2884; // 48Mhz/(pwmfre*prescalar)
+#define LOOKUP_ENTRIES  512
+
+// Conditional compile-time constants for ADC values
+#ifdef ENABLE_THROTTLE
+const uint16_t PMSM_ADC_START = 1150;
+const uint16_t PMSM_ADC_STOP = 1090;
+#else
+const uint16_t PMSM_ADC_START = 200;
+const uint16_t PMSM_ADC_STOP = 50;
+#endif
+const uint16_t PMSM_ADC_MAX = 4000;
+
+
+
+const uint16_t PMSM_MODE_ENABLED = 1;
+const uint16_t PMSM_MODE_DISABLED = 2;
+
+
+
+const uint16_t PMSM_TIMER14_PRESCALER = 48;
+const uint16_t PMSM_TIMER14_PERIOD = 0xFFFF; // 65535
+
 volatile uint16_t PMSM_Speed = 0;
 volatile uint16_t PMSM_PWM = 0;
-volatile uint8_t PMSM_MotorRunFlag = 0;
 volatile uint16_t toUpdate=0,toUpdatePrev=0;//for BLDC start
 char stringToUARTF[100] = "buffer here\r\n";//{'\0',};
 extern uint32_t globalTime;
@@ -49,12 +75,45 @@ volatile uint32_t phaseInc=1U,phase=0;
 static uint16_t lookUP[LOOKUP_ENTRIES];
 volatile uint16_t throttledPWMWidth=0;
 
+
+
+// Initialization functions
+static void linkThrottle(Throttle *throttle) {
+    throttle->reading = 0; // Initialize with default value
+}
+
+static void linkHallSensor(HallSensor *sensor) {
+    sensor->sector = 0; // Initialize with default value
+    sensor->pins = HALL_SENSOR_PINS;
+}
+
+static void linkComm(Comm *comm) {
+    comm->ch = 0; // Initialize with default value
+}
+
+static void linkMotor(Motor *motor) {
+    motor->type = 0; // Initialize with default value
+    motor->speed = 0; // Initialize with default value
+    motor->spin_direction = PMSM_CW; // Initialize with default value
+    motor->running_state = false; // Initialize with default value
+}
+
+static void linkDriveTimer(DriveTimer *timer) {
+    // Initialize with default values if any
+}
+
+void initController() {
+    linkThrottle(&controller_t.throttle_t);
+    linkHallSensor(&controller_t.hall_sensor_t);
+    linkComm(&controller_t.uart_t);
+    linkMotor(&controller_t.motor_t);
+    linkDriveTimer(&controller_t.drive_timer_t);
+}
+
 //defining the callbacks here
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
-	
-	PMSM_Sensors = (uint8_t)((GPIOB->IDR) & (HS_PINS))>>5;//get rotor postion
-	
-	BLDC_MotorCommutation(PMSM_Sensors);//commutate stator
+	uint8_t sector = getRotorSector();
+	BLDC_MotorCommutation(sector);//commutate stator
 	
 	//calculate the current speed of rotor by getting the counter value of TIM14
 	PMSM_Speed = TIM14->CNT;//get speed
@@ -65,8 +124,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_pin) {
 		phaseInc = (uint32_t)LOOKUP_ENTRIES*30/PMSM_Speed;
 	}
 	
-	if((PMSM_Sensors > 0) & (PMSM_Sensors < 7)){
-		phase=getPhase(PMSM_Sensors);
+	if((sector > 0) & (sector < 7)){
+		phase=getPhase(sector);
 	}
 	//(GPIOA->ODR & 0x00001000U) ? (GPIOA->BRR = 0x00001000U):(GPIOA->BSRR = 0x00001000U);//don't use here
 }
@@ -78,7 +137,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			phase=0;
 			toUpdate = 0;
 			toUpdatePrev=0;
-			PMSM_MotorRunFlag = 0;
+			setMotorRunningState(false);
 		}
 		
 		if(htim->Instance == TIM1){//runs every 60us
@@ -101,8 +160,12 @@ void PMSM_Init(void) {
 	PMSM_generateLookUpTable();
 }
 
-uint8_t PMSM_HallSensorsGetPosition(void) {
-	return (uint8_t)((GPIOB->IDR) & (HS_PINS))>>5;
+uint16_t getThrottleStartValue(){
+	return PMSM_ADC_START;
+}
+
+uint8_t getRotorSector(void) {
+	return (uint8_t)((GPIOB->IDR) & (HALL_SENSOR_PINS))>>5;
 }
 
 #ifdef ENABLE_UART_DEBUG
@@ -152,20 +215,21 @@ uint16_t PMSM_ADCToPWM(uint16_t ADC_VALUE) {
 	}
 }
 
-void PMSM_MotorSetSpin(uint8_t spin) {
-	PMSM_MotorSpin = spin;
+void setMotorSpinDirection(uint8_t spin_direction) {
+	controller_t.motor_t.spin_direction = spin_direction;
 }
-
-uint8_t PMSM_MotorIsRun(void) {
-	return PMSM_MotorRunFlag;
+uint8_t getMotorSpinDirection() {
+	return controller_t.motor_t.spin_direction;
+}
+void setMotorRunningState(bool running_state){
+	controller_t.motor_t.running_state = running_state;
+}
+bool isMotorRunning(void){
+	return (controller_t.motor_t.running_state == true);
 }
 
 uint16_t PMSM_GetSpeed(void) {
 	return PMSM_Speed;
-}
-
-void PMSM_MotorSetRun(void) {
-	PMSM_MotorRunFlag = 1;
 }
 
 // Stop a motor
@@ -181,15 +245,14 @@ void PMSM_MotorStop(void){
 	__HAL_TIM_DISABLE(&htim14);
 
 	PMSM_Speed = 0;
-	PMSM_MotorRunFlag = 0;
+	setMotorRunningState(false);
 }
 
 void BLDC_MotorCommutation(uint16_t hallpos){
 	
-	if (PMSM_MotorSpin == PMSM_CW) {
+	if (getMotorSpinDirection() == PMSM_CW) {
 		memcpy(PMSM_STATE, PMSM_BRIDGE_STATE_FORWARD[hallpos], sizeof(PMSM_STATE));
-	}
-	else if(PMSM_MotorSpin == PMSM_CCW){
+	}else if(getMotorSpinDirection() == PMSM_CCW){
 		memcpy(PMSM_STATE, PMSM_BRIDGE_STATE_BACKWARD[hallpos], sizeof(PMSM_STATE));
 	}
 
@@ -240,6 +303,11 @@ void PMSM_SetPWMWidthToYGB(uint8_t val){
 
 void PMSM_updatePMSMPWMVariable(uint16_t PWM){
 	PMSM_PWM=PWM;
+}
+
+
+bool isReverseButtonPressed(void){
+	return (GPIO_READ_PIN(punchF_R_GPIO_Port, punchF_R_Pin) == 0U);
 }
 
 

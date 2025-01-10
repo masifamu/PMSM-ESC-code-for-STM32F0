@@ -103,6 +103,7 @@ int main(void)
 	HAL_ADC_Start_DMA(&hadc,(uint32_t*)&ADCBuffer,6);
 
 	PMSM_Init();
+	initController();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -117,20 +118,20 @@ int main(void)
 	  //snprintf(stringToUART,100,"ADCBuffer=%d\r\n",ADCBuffer[0]);
 	  //sendToUART(stringToUART);
 
-	  if ((ADCBuffer[0] & 0xFFF0) > PMSM_ADC_START) {
-		  // If Motor Is not run
-		  if (PMSM_MotorIsRun() == 0) {
+	  if ((ADCBuffer[0] & 0xFFF0) > getThrottleStartValue()) {
+		  // If Motor Is not running
+		  if (!isMotorRunning()) {
 			  // Start motor
-			  // Check Reverse pin
-			  if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15) != 0) {
-				  // Forward
-				  PMSM_MotorSetSpin(PMSM_CW);
+			  // Check Reverse button
+			  if (isReverseButtonPressed()) {
+				  // Reverse
+				  setMotorSpinDirection(PMSM_CCW);
 			  } else {
-				  // Backward
-				  PMSM_MotorSetSpin(PMSM_CCW);
+				  // Forward
+				  setMotorSpinDirection(PMSM_CW);
 			  }
-			  BLDC_MotorCommutation(PMSM_HallSensorsGetPosition());
-			  PMSM_MotorSetRun();
+			  BLDC_MotorCommutation(getRotorSector());
+			  setMotorRunningState(true);
 		  }
 
 		  PMSM_updatePMSMPWMVariable(PMSM_ADCToPWM(ADCBuffer[0] & 0xFFF0));
