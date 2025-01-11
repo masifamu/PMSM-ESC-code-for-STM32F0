@@ -131,7 +131,7 @@ void initGPIO(void){
 
 	//3. Configure mode for PB5,PB6,PB7
 	//(00: Input, 01: General purpose output mode, 10: Alternate function mode, 11: Analog mode)
-	GPIOB->MODER &= ~(GPIO_MODER_MODER5 | GPIO_MODER_MODER5 | GPIO_MODER_MODER5); //reset first
+	GPIOB->MODER &= ~(GPIO_MODER_MODER5 | GPIO_MODER_MODER6 | GPIO_MODER_MODER7); //reset first
 
 	//6. Set no pull-up/pull-down (00: No pull-up, pull-down, 01: Pull-up, 10: Pull-down, 11: Reserved)
 	GPIOA->PUPDR &= ~(GPIO_PUPDR_PUPDR5 | GPIO_PUPDR_PUPDR6 | GPIO_PUPDR_PUPDR7);
@@ -151,19 +151,19 @@ void initGPIO(void){
 // This function will be called at every hall sensor trigger.
 void EXTI4_15_IRQHandler(void)
 {
-//    // Check which EXTI line triggered the interrupt and clear the flag
-//    if (EXTI->PR & (1 << 5)) {
-//        EXTI->PR = (1 << 5); // Clear interrupt pending bit for PB5
-//        // Handle interrupt for PB5
-//    }
-//    if (EXTI->PR & (1 << 6)) {
-//        EXTI->PR = (1 << 6); // Clear interrupt pending bit for PB6
-//        // Handle interrupt for PB6
-//    }
-//    if (EXTI->PR & (1 << 7)) {
-//        EXTI->PR = (1 << 7); // Clear interrupt pending bit for PB7
-//        // Handle interrupt for PB7
-//    }
+    // Check which EXTI line triggered the interrupt and clear the flag
+    if (EXTI->PR & (1 << 5)) {
+        EXTI->PR = (1 << 5); // Clear interrupt pending bit for PB5
+        // Handle interrupt for PB5
+    }
+    if (EXTI->PR & (1 << 6)) {
+        EXTI->PR = (1 << 6); // Clear interrupt pending bit for PB6
+        // Handle interrupt for PB6
+    }
+    if (EXTI->PR & (1 << 7)) {
+        EXTI->PR = (1 << 7); // Clear interrupt pending bit for PB7
+        // Handle interrupt for PB7
+    }
     GPIO_TOGGLE_PIN(GPIOB, YELLOW_LED);
 }
 /* USER CODE END 2 */
