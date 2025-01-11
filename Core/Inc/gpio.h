@@ -33,7 +33,7 @@ extern "C" {
 /* USER CODE END Includes */
 
 /* USER CODE BEGIN Private defines */
-
+void initGPIO(void);
 /* USER CODE END Private defines */
 
 void MX_GPIO_Init(void);

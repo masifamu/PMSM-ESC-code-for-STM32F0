@@ -12,7 +12,9 @@
 #define CPU_CLOCK_SPEED 					48000000 // 48 MHz
 #define UART_BAUD_RATE 						115200
 #define HALL_SENSOR_PINS 					(GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7)
-
+#define GREEN_LED							GPIO_PIN_4
+#define BLUE_LED							GPIO_PIN_12
+#define YELLOW_LED							GPIO_PIN_3
 // Add any other board-specific configuration here
 
 #endif // BOARD_CONFIG_H

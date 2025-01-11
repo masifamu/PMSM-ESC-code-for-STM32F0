@@ -1,1 +1,4 @@
+../Drivers/CMSIS/Include/core_cm0.h:623:22:__NVIC_EnableIRQ	16	static
 ../Core/Src/gpio.c:42:6:MX_GPIO_Init	48	static
+../Core/Src/gpio.c:87:6:initGPIO	8	static
+../Core/Src/gpio.c:152:6:EXTI4_15_IRQHandler	8	static

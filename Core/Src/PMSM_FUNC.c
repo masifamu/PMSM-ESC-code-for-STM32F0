@@ -307,7 +307,7 @@ void PMSM_updatePMSMPWMVariable(uint16_t PWM){
 
 
 bool isReverseButtonPressed(void){
-	return (GPIO_READ_PIN(punchF_R_GPIO_Port, punchF_R_Pin) == 0U);
+	return (GPIO_READ_PIN(GPIOA, GPIO_PIN_15) == 0U);
 }
 
 

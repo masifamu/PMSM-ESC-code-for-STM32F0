@@ -27,6 +27,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "PMSM_FUNC.h"
+#include "board_config_V1.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -92,13 +93,14 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  MX_GPIO_Init();
+//  MX_GPIO_Init();
   MX_DMA_Init();
   MX_ADC_Init();
   MX_TIM1_Init();
   MX_TIM14_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  initGPIO();
 	HAL_ADCEx_Calibration_Start(&hadc);
 	HAL_ADC_Start_DMA(&hadc,(uint32_t*)&ADCBuffer,6);
 
@@ -110,9 +112,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  /* USER CODE END WHILE */
+    /* USER CODE END WHILE */
 
-	  /* USER CODE BEGIN 3 */
+    /* USER CODE BEGIN 3 */
 
 	  //sendToUART("HELLO\r\n");
 	  //snprintf(stringToUART,100,"ADCBuffer=%d\r\n",ADCBuffer[0]);
@@ -141,11 +143,11 @@ int main(void)
 		  //snprintf(stringToUART,100,"GT=%d CNT=%d\r\n",globalTime,counter);
 		  sendToUART(stringToUART);
 #endif
-		  GPIOB->BSRR = 0x0010;//set green LED
+		  GPIO_SET_PIN(GPIOB, GREEN_LED);//set green LED
 	  }else {
 		  __HAL_TIM_DISABLE_IT(&htim1,TIM_IT_UPDATE);//stop timer 1 interrupt
 		  PMSM_SetPWMWidthToYGB(0);
-		  GPIOB->BRR = 0x0010;//reset green LED
+		  GPIO_SET_PIN(GPIOB, GREEN_LED);//reset green LED
 	  }
   }
   /* USER CODE END 3 */
@@ -155,46 +157,72 @@ int main(void)
   * @brief System Clock Configuration
   * @retval None
   */
-void SystemClock_Config(void)
-{
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
-
-  /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Initializes the CPU, AHB and APB buses clocks
-  */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
-  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK1;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-  {
-    Error_Handler();
-  }
-}
+//void SystemClock_Config(void)
+//{
+//  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+//  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+//  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+//
+//  /** Initializes the RCC Oscillators according to the specified parameters
+//  * in the RCC_OscInitTypeDef structure.
+//  */
+//  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+//  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+//  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+//  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+//  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
+//
+//  /** Initializes the CPU, AHB and APB buses clocks
+//  */
+//  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+//                              |RCC_CLOCKTYPE_PCLK1;
+//  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+//  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+//  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+//
+//  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
+//  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
+//  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK1;
+//  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
+//}
 
 /* USER CODE BEGIN 4 */
+//*********************************************handling system clk***************//
+void SystemClock_Config(void)
+{
+  // Enable HSI (High Speed Internal) clock
+  RCC->CR |= RCC_CR_HSION;
 
+  // Wait till HSI is ready
+  while((RCC->CR & RCC_CR_HSIRDY) == 0);
+
+  // Configure the Flash latency and enable prefetch buffer
+  FLASH->ACR |= FLASH_ACR_LATENCY | FLASH_ACR_PRFTBE;
+
+  // Configure the AHB and APB bus clocks
+  RCC->CFGR |= RCC_CFGR_HPRE_DIV1;   // HCLK = SYSCLK
+  RCC->CFGR |= RCC_CFGR_PPRE_DIV1;  // PCLK1 = HCLK
+
+  // Select HSI as the system clock source
+  RCC->CFGR &= ~RCC_CFGR_SW;          // Clear SW bits
+  RCC->CFGR |= RCC_CFGR_SW_HSI;       // Set HSI as system clock
+
+  // Wait till HSI is used as the system clock source
+  while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI);
+
+  // Configure the USART1 clock source to PCLK1
+  RCC->CIR &= ~RCC_CFGR3_USART1SW;  // Clear USART1 clock source selection bits
+  RCC->CIR |= RCC_CFGR3_USART1SW_0; // Set PCLK1 as USART1 clock source
+}
 /* USER CODE END 4 */
 
 /**
